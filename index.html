@@ -3998,7 +3998,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   firebase.initializeApp(firebaseConfig);
   const db   = firebase.database();
   const auth = firebase.auth();
-  auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+  auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
 
   auth.onAuthStateChanged(async user => {
     if (user) {
