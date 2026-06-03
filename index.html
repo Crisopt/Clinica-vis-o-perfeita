@@ -626,7 +626,62 @@ body {
 .ftag.ft-loja2.active, .ftag.ft-trafego-loja2.active { background: #F0FDF4; }
 .ftag.ft-loja3.active, .ftag.ft-trafego-loja3.active { background: #FFF7ED; }
 .ftag.ft-loja4.active, .ftag.ft-trafego-loja4.active { background: #FDF4FF; }
-.ftag .ftag-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.ftag.ft-vendedor { color: #6B4F9E; border-color: rgba(107,79,158,0.25); background: #F5F0FF; }
+.ftag.ft-vendedor:hover { color: #5B3FCA; border-color: rgba(91,63,202,0.4); }
+.ftag.ft-vendedor.active { background: #EDE9FE; color: #5B3FCA; border-color: #5B3FCA; font-weight: 600; }
+
+.col-vendedor { white-space: nowrap; }
+.vendedor-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #F5F0FF;
+  color: #5B3FCA;
+  border: 1px solid rgba(91,63,202,0.2);
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.12s, border-color 0.12s;
+}
+.vendedor-badge:hover { background: #EDE9FE; border-color: rgba(91,63,202,0.4); }
+.vendedor-badge.sem-vendedor { background: var(--surface2); color: var(--text-hint); border-color: var(--border); }
+
+.vendedor-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  box-shadow: var(--sh-md);
+  z-index: 300;
+  min-width: 160px;
+  max-height: 260px;
+  overflow-y: auto;
+  display: none;
+}
+.vendedor-menu.open { display: block; animation: slideDown 0.12s ease; }
+.vendedor-option {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  font-family: var(--font);
+  transition: background 0.08s;
+}
+.vendedor-option:hover { background: var(--surface2); }
+.vendedor-option.limpar { color: var(--text-muted); font-size: 12px; border-top: 1px solid var(--border); }
+.vendedor-wrap { position: relative; display: inline-block; }
+
 
 .filter-meta {
   display: flex;
@@ -2847,6 +2902,24 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         <label for="exame">Exame / Consulta</label>
         <input type="text" id="exame" placeholder="Ex: Raio-X, Ultrassom" autocomplete="off">
       </div>
+      <div class="form-group">
+        <label for="vendedor">Vendedor</label>
+        <select id="vendedor" style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:var(--r);font-size:13px;background:var(--bg);color:var(--text);font-family:var(--font);transition:border-color 0.15s,box-shadow 0.15s;">
+          <option value="">— Selecionar vendedor —</option>
+          <option value="Aline">Aline</option>
+          <option value="Cristhofer">Cristhofer</option>
+          <option value="Danuza">Danuza</option>
+          <option value="Dreice">Dreice</option>
+          <option value="Fernanda">Fernanda</option>
+          <option value="Isabella">Isabella</option>
+          <option value="Jefferson">Jefferson</option>
+          <option value="Melissa">Melissa</option>
+          <option value="Rayane">Rayane</option>
+          <option value="Retorno">Retorno</option>
+          <option value="Samara">Samara</option>
+          <option value="Vitória">Vitória</option>
+        </select>
+      </div>
       <button class="btn-primary" onclick="agendar()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>
         Agendar paciente
@@ -2999,6 +3072,24 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           </div>
         </div>
 
+        <div class="filter-row">
+          <span class="filter-label">Vendedor</span>
+          <div class="filter-tags" id="filterTagsVendedor">
+            <button class="ftag ft-vendedor" data-vendedor="Aline" onclick="toggleFiltroVendedor('Aline',this)">Aline</button>
+            <button class="ftag ft-vendedor" data-vendedor="Cristhofer" onclick="toggleFiltroVendedor('Cristhofer',this)">Cristhofer</button>
+            <button class="ftag ft-vendedor" data-vendedor="Danuza" onclick="toggleFiltroVendedor('Danuza',this)">Danuza</button>
+            <button class="ftag ft-vendedor" data-vendedor="Dreice" onclick="toggleFiltroVendedor('Dreice',this)">Dreice</button>
+            <button class="ftag ft-vendedor" data-vendedor="Fernanda" onclick="toggleFiltroVendedor('Fernanda',this)">Fernanda</button>
+            <button class="ftag ft-vendedor" data-vendedor="Isabella" onclick="toggleFiltroVendedor('Isabella',this)">Isabella</button>
+            <button class="ftag ft-vendedor" data-vendedor="Jefferson" onclick="toggleFiltroVendedor('Jefferson',this)">Jefferson</button>
+            <button class="ftag ft-vendedor" data-vendedor="Melissa" onclick="toggleFiltroVendedor('Melissa',this)">Melissa</button>
+            <button class="ftag ft-vendedor" data-vendedor="Rayane" onclick="toggleFiltroVendedor('Rayane',this)">Rayane</button>
+            <button class="ftag ft-vendedor" data-vendedor="Retorno" onclick="toggleFiltroVendedor('Retorno',this)">Retorno</button>
+            <button class="ftag ft-vendedor" data-vendedor="Samara" onclick="toggleFiltroVendedor('Samara',this)">Samara</button>
+            <button class="ftag ft-vendedor" data-vendedor="Vitória" onclick="toggleFiltroVendedor('Vitória',this)">Vitória</button>
+          </div>
+        </div>
+
         <div class="filter-meta">
           <span class="filter-count hidden" id="filterCount"></span>
           <button class="btn-clear-filters hidden" id="btnLimparFiltros" onclick="limparFiltros()">× Limpar filtros</button>
@@ -3038,6 +3129,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
               </th>
               <th class="col-loja">Loja</th>
               <th>Situação</th>
+              <th class="col-vendedor">Vendedor</th>
               <th class="col-whatsapp">WhatsApp</th>
               <th></th>
             </tr>
@@ -3083,6 +3175,24 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       <div class="form-group">
         <label for="editExame">Exame / Consulta</label>
         <input type="text" id="editExame" placeholder="Ex: Raio-X, Ultrassom" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="editVendedor">Vendedor</label>
+        <select id="editVendedor" style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:var(--r);font-size:13px;background:var(--bg);color:var(--text);font-family:var(--font);">
+          <option value="">— Sem vendedor —</option>
+          <option value="Aline">Aline</option>
+          <option value="Cristhofer">Cristhofer</option>
+          <option value="Danuza">Danuza</option>
+          <option value="Dreice">Dreice</option>
+          <option value="Fernanda">Fernanda</option>
+          <option value="Isabella">Isabella</option>
+          <option value="Jefferson">Jefferson</option>
+          <option value="Melissa">Melissa</option>
+          <option value="Rayane">Rayane</option>
+          <option value="Retorno">Retorno</option>
+          <option value="Samara">Samara</option>
+          <option value="Vitória">Vitória</option>
+        </select>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -4049,18 +4159,19 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const data    = document.getElementById('data').value;
     const horario = document.getElementById('horario').value;
     const exame   = document.getElementById('exame').value.trim();
+    const vendedor = document.getElementById('vendedor').value;
     if (!nome || !tel || !data || !horario) { toast('⚠️','Campos obrigatórios','Preencha nome, telefone, data e horário.'); return; }
 
     // Verificar duplicata de telefone
     const telLimpo = tel.replace(/\D/g,'');
     const duplicado = agendamentos.find(a => a.tel.replace(/\D/g,'') === telLimpo);
     if (duplicado) {
-      _pendingAgendamentoData = { nome, tel, data, horario, exame };
+      _pendingAgendamentoData = { nome, tel, data, horario, exame, vendedor };
       document.getElementById('dupTelInfo').textContent = '📞 ' + tel + ' — já cadastrado para: ' + duplicado.nome;
       document.getElementById('modalDupTel').classList.add('open');
       return;
     }
-    await _efetivarAgendamento(nome, tel, data, horario, exame);
+    await _efetivarAgendamento(nome, tel, data, horario, exame, false, vendedor);
   }
 
   function fecharDupTel() {
@@ -4070,18 +4181,19 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   async function confirmarAgendarMesmoDup() {
     if (!_pendingAgendamentoData) return;
-    const { nome, tel, data, horario, exame } = _pendingAgendamentoData;
+    const { nome, tel, data, horario, exame, vendedor } = _pendingAgendamentoData;
     _pendingAgendamentoData = null;
     fecharDupTel();
-    await _efetivarAgendamento(nome, tel, data, horario, exame, true);
+    await _efetivarAgendamento(nome, tel, data, horario, exame, true, vendedor);
   }
 
-  async function _efetivarAgendamento(nome, tel, data, horario, exame, isFamilia) {
-    agendamentos.unshift({ id: Date.now().toString(), nome, tel, data, horario, exame: exame || 'Não informado', criadoEm: new Date().toISOString(), lembreteEnviado: false, isFamilia: !!isFamilia });
+  async function _efetivarAgendamento(nome, tel, data, horario, exame, isFamilia, vendedor) {
+    agendamentos.unshift({ id: Date.now().toString(), nome, tel, data, horario, exame: exame || 'Não informado', criadoEm: new Date().toISOString(), lembreteEnviado: false, isFamilia: !!isFamilia, vendedor: vendedor || '' });
     await salvar();
     renderCal(); renderTabela(); atualizarStats();
     toast('✅','Agendado!',`${nome} — ${formatarData(data)} às ${horario}`);
     ['nome','telefone','data','horario','exame'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('vendedor').value = '';
     document.getElementById('nome').focus();
     // fechar sidebar no mobile após agendar
     if (window.innerWidth <= 768) closeSidebar();
@@ -4668,7 +4780,53 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   }
 
   let lojaMenuAbertoId = null;
-  function toggleLojaMenu(id, e) {
+
+  // ── VENDEDORES ────────────────────────────────────────────
+  const VENDEDORES = ['Aline','Cristhofer','Danuza','Dreice','Fernanda','Isabella','Jefferson','Melissa','Rayane','Retorno','Samara','Vitória'];
+
+  let vendedorMenuAbertoId = null;
+  function vendedorBadge(ag) {
+    const v = ag.vendedor || '';
+    const cls = v ? 'vendedor-badge' : 'vendedor-badge sem-vendedor';
+    const label = v || '— Sem vendedor';
+    const opcoesHtml = [
+      `<button class="vendedor-option limpar" onclick="setVendedor('${ag.id}','',event)">✕ Remover</button>`,
+      ...VENDEDORES.map(n => `<button class="vendedor-option" onclick="setVendedor('${ag.id}','${n}',event)">${n}</button>`)
+    ].join('');
+    return `
+      <div class="vendedor-wrap" id="vw-${ag.id}">
+        <button class="${cls}" onclick="toggleVendedorMenu('${ag.id}',event)">
+          👤 ${label}
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="vendedor-menu" id="vm-${ag.id}">${opcoesHtml}</div>
+      </div>`;
+  }
+
+  function toggleVendedorMenu(id, e) {
+    e.stopPropagation();
+    const menu = document.getElementById('vm-' + id);
+    if (!menu) return;
+    const jaAberto = menu.classList.contains('open');
+    fecharTodosMenusVendedor();
+    if (!jaAberto) { menu.classList.add('open'); vendedorMenuAbertoId = id; }
+  }
+  function fecharTodosMenusVendedor() { document.querySelectorAll('.vendedor-menu.open').forEach(m => m.classList.remove('open')); vendedorMenuAbertoId = null; }
+
+  async function setVendedor(id, vendedor, e) {
+    if (e) e.stopPropagation();
+    const ag = agendamentos.find(a => a.id === id);
+    if (!ag) return;
+    ag.vendedor = vendedor;
+    fecharTodosMenusVendedor();
+    await salvar();
+    renderTabela();
+    if (vendedor) toast('👤','Vendedor atualizado',`${ag.nome} → ${vendedor}`);
+    else toast('👤','Vendedor removido', ag.nome);
+  }
+
+  document.addEventListener('click', fecharTodosMenusVendedor);
+
     // legacy — redireciona para versão por botão
     toggleLojaMenuBtn(e.currentTarget, e, id);
   }
@@ -4729,11 +4887,13 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   // ── FILTROS ──────────────────────────────────────────────
   let filtrosAtivos = new Set();
   let filtrosLojaAtivos = new Set();
+  let filtrosVendedorAtivos = new Set();
   let filtroLembrete = null; // null | 'pendente' | 'lembrar' | 'enviado'
 
   function toggleFiltro(sit, btn) { filtrosAtivos.has(sit) ? filtrosAtivos.delete(sit) : filtrosAtivos.add(sit); btn.classList.toggle('active'); renderTabela(); }
   function toggleFiltroLoja(loja, btn) { filtrosLojaAtivos.has(loja) ? filtrosLojaAtivos.delete(loja) : filtrosLojaAtivos.add(loja); btn.classList.toggle('active'); renderTabela(); }
-  function limparFiltros() { filtrosAtivos.clear(); filtrosLojaAtivos.clear(); document.querySelectorAll('.ftag').forEach(b => b.classList.remove('active')); setFiltroLembrete(null); renderTabela(); }
+  function toggleFiltroVendedor(v, btn) { filtrosVendedorAtivos.has(v) ? filtrosVendedorAtivos.delete(v) : filtrosVendedorAtivos.add(v); btn.classList.toggle('active'); renderTabela(); }
+  function limparFiltros() { filtrosAtivos.clear(); filtrosLojaAtivos.clear(); filtrosVendedorAtivos.clear(); document.querySelectorAll('.ftag').forEach(b => b.classList.remove('active')); setFiltroLembrete(null); renderTabela(); }
 
   function toggleFiltroLembrete(e) {
     e.stopPropagation();
@@ -4766,6 +4926,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     if (busca) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(busca) || a.tel.includes(busca) || (a.exame||'').toLowerCase().includes(busca));
     if (filtrosAtivos.size > 0) filtrados = filtrados.filter(a => filtrosAtivos.has(a.situacao || 'agendado'));
     if (filtrosLojaAtivos.size > 0) filtrados = filtrados.filter(a => filtrosLojaAtivos.has(a.loja || ''));
+    if (filtrosVendedorAtivos.size > 0) filtrados = filtrados.filter(a => filtrosVendedorAtivos.has(a.vendedor || ''));
     if (filtroLembrete) {
       filtrados = filtrados.filter(a => {
         if (filtroLembrete === 'enviado') return a.lembreteEnviado;
@@ -4789,7 +4950,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       );
     }
 
-    const temFiltro = filtrosAtivos.size > 0 || filtrosLojaAtivos.size > 0 || filtroLembrete;
+    const temFiltro = filtrosAtivos.size > 0 || filtrosLojaAtivos.size > 0 || filtrosVendedorAtivos.size > 0 || filtroLembrete;
     if (temFiltro) {
       countEl.textContent = `${filtrados.length} resultado${filtrados.length !== 1 ? 's' : ''}`;
       countEl.classList.remove('hidden'); btnL.classList.remove('hidden');
@@ -4827,6 +4988,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           <td class="col-lembrete">${lbadge}</td>
           <td class="col-loja">${lojaBadge(a)}</td>
           <td>${situacaoBadge(a)}</td>
+          <td class="col-vendedor">${vendedorBadge(a)}</td>
           <td class="col-whatsapp">${waBadge(a)}</td>
           <td><button class="btn-icon" onclick="remover('${a.id}')" title="Remover">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -4885,6 +5047,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     document.getElementById('editNome').value     = ag.nome;
     document.getElementById('editTelefone').value = ag.tel;
     document.getElementById('editExame').value    = ag.exame || '';
+    document.getElementById('editVendedor').value = ag.vendedor || '';
     document.getElementById('editData').value     = ag.data || '';
     document.getElementById('editHorario').value  = ag.horario || '';
     document.getElementById('modalOverlay').classList.remove('hidden');
@@ -4911,12 +5074,13 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const novoNome    = document.getElementById('editNome').value.trim();
     const novoTel     = document.getElementById('editTelefone').value.trim();
     const novoExame   = document.getElementById('editExame').value.trim();
+    const novoVendedor = document.getElementById('editVendedor').value;
     const novaData    = document.getElementById('editData').value;
     const novoHorario = document.getElementById('editHorario').value;
     if (!novoNome || !novoTel) { toast('⚠️','Campos obrigatórios','Nome e telefone são obrigatórios.'); return; }
     if (!novaData || !novoHorario) { toast('⚠️','Campos obrigatórios','Data e horário são obrigatórios.'); return; }
     ag.nome = novoNome; ag.tel = novoTel; ag.exame = novoExame || 'Não informado';
-    ag.data = novaData; ag.horario = novoHorario;
+    ag.data = novaData; ag.horario = novoHorario; ag.vendedor = novoVendedor || '';
     notificacoes.filter(n => n.agId === editandoId).forEach(n => { n.nome = novoNome; n.tel = novoTel; n.exame = ag.exame; n.dataAgenda = novaData; n.horario = novoHorario; });
     await salvar(); renderCal(); renderTabela(); renderNotificacoes();
     document.getElementById('modalOverlay').classList.add('hidden');
@@ -4931,6 +5095,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     if (busca) lista = lista.filter(a => a.nome.toLowerCase().includes(busca) || a.tel.includes(busca) || (a.exame||'').toLowerCase().includes(busca));
     if (filtrosAtivos.size > 0) lista = lista.filter(a => filtrosAtivos.has(a.situacao || 'agendado'));
     if (filtrosLojaAtivos.size > 0) lista = lista.filter(a => filtrosLojaAtivos.has(a.loja || ''));
+    if (filtrosVendedorAtivos.size > 0) lista = lista.filter(a => filtrosVendedorAtivos.has(a.vendedor || ''));
     if (filtroLembrete) {
       lista = lista.filter(a => {
         if (filtroLembrete === 'enviado') return a.lembreteEnviado;
@@ -4944,14 +5109,14 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     if (lista.length === 0) { toast('⚠️','Nada para exportar','Nenhum agendamento encontrado com os filtros atuais.'); return; }
     const SIT = { agendado:'Agendado', veio:'Veio na consulta', nao_veio:'Não veio', comprou:'Comprou o óculos', chamar:'Chamando', em_atendimento:'Em atendimento' };
     const linhas = [
-      ['Nome','Telefone','Exame / Consulta','Data Agendamento','Horário','Lembrete','Loja','Situação'],
-      ...lista.map(a => [ a.nome, a.tel, a.exame||'Não informado', formatarData(a.data), a.horario, a.lembreteEnviado ? 'Enviado' : 'Pendente', (a.loja ? (LOJAS[a.loja]||{label:a.loja}).label : ''), SIT[a.situacao||'agendado']||'Agendado' ])
+      ['Nome','Telefone','Exame / Consulta','Data Agendamento','Horário','Lembrete','Loja','Situação','Vendedor'],
+      ...lista.map(a => [ a.nome, a.tel, a.exame||'Não informado', formatarData(a.data), a.horario, a.lembreteEnviado ? 'Enviado' : 'Pendente', (a.loja ? (LOJAS[a.loja]||{label:a.loja}).label : ''), SIT[a.situacao||'agendado']||'Agendado', a.vendedor||'' ])
     ];
     const csv = linhas.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
     const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a');
     const d = new Date();
-    const temFiltro = filtrosAtivos.size > 0 || filtrosLojaAtivos.size > 0 || filtroLembrete || filtroDia || busca;
+    const temFiltro = filtrosAtivos.size > 0 || filtrosLojaAtivos.size > 0 || filtrosVendedorAtivos.size > 0 || filtroLembrete || filtroDia || busca;
     a.href = url; a.download = `pacientes${temFiltro ? '_filtrado' : ''}_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.csv`;
     a.click(); URL.revokeObjectURL(url);
     toast('✅','Excel exportado!',`${lista.length} paciente(s)${temFiltro ? ' (filtrado)' : ''}.`);
