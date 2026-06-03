@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel do Médico — Fila de Espera</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green:        #15803d;
+    --green-light:  #dcfce7;
+    --green-mid:    #22c55e;
+    --blue:         #1d4ed8;
+    --blue-light:   #dbeafe;
+    --orange:       #ea580c;
+    --orange-light: #ffedd5;
+    --red:          #dc2626;
+    --red-light:    #fee2e2;
+    --gray:         #6b7280;
+    --gray-light:   #f3f4f6;
+    --text:         #111827;
+    --text-sub:     #6b7280;
+    --border:       #e5e7eb;
+    --surface:      #ffffff;
+    --font:         'DM Sans', sans-serif;
+    --r:            10px;
+    --r-lg:         14px;
+  }
+
+  body {
+    font-family: var(--font);
+    background: #f0fdf4;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── LOGIN ─────────────────────────────────────────── */
+  #loginScreen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .login-card {
+    background: var(--surface);
+    border-radius: 20px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.10);
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+  }
+  .login-icon {
+    width: 64px; height: 64px;
+    background: var(--green-light);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 28px;
+  }
+  .login-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .login-card p  { font-size: 13px; color: var(--text-sub); margin-bottom: 28px; }
+  .login-card input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--r);
+    font-size: 15px;
+    font-family: var(--font);
+    outline: none;
+    margin-bottom: 14px;
+    transition: border-color 0.15s;
+  }
+  .login-card input:focus { border-color: var(--green); }
+  .login-card button {
+    width: 100%;
+    padding: 13px;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: var(--r);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: filter 0.15s;
+  }
+  .login-card button:hover { filter: brightness(1.08); }
+  .login-err {
+    color: var(--red);
+    font-size: 12px;
+    margin-top: 10px;
+    display: none;
+  }
+
+  /* ── APP ────────────────────────────────────────────── */
+  #appScreen { display: none; min-height: 100vh; }
+
+  /* Header */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 58px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-icon {
+    width: 36px; height: 36px;
+    background: var(--green-light);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .header h2 { font-size: 15px; font-weight: 700; }
+  .header-sub { font-size: 11px; color: var(--text-sub); margin-top: 1px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  /* Live badge */
+  .live-badge {
+    display: flex; align-items: center; gap: 5px;
+    background: #fee2e2;
+    color: var(--red);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .live-dot {
+    width: 7px; height: 7px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .btn-logout {
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-sub);
+    cursor: pointer;
+    font-family: var(--font);
+    transition: all 0.15s;
+  }
+  .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+  /* Main */
+  .main { max-width: 680px; margin: 0 auto; padding: 20px 16px 40px; }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-pill {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .stat-pill .num  { font-size: 24px; font-weight: 700; line-height: 1; }
+  .stat-pill .lbl  { font-size: 11px; color: var(--text-sub); margin-top: 3px; }
+  .stat-pill.green { border-color: #bbf7d0; background: var(--green-light); }
+  .stat-pill.green .num { color: var(--green); }
+
+  /* Section title */
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-sub);
+    margin-bottom: 10px;
+  }
+
+  /* Queue list */
+  #filaList { display: flex; flex-direction: column; gap: 10px; }
+
+  .fila-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: box-shadow 0.15s;
+    animation: cardIn 0.22s ease;
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fila-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+
+  /* First in queue gets green highlight */
+  .fila-card.primeiro {
+    border-color: #86efac;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+    box-shadow: 0 2px 16px rgba(21,128,61,0.10);
+  }
+
+  .fila-num {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--gray-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-sub);
+    flex-shrink: 0;
+  }
+  .fila-card.primeiro .fila-num {
+    background: var(--green);
+    color: #fff;
+  }
+
+  .fila-info { flex: 1; min-width: 0; }
+  .fila-nome {
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fila-meta {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 3px;
+    flex-wrap: wrap;
+  }
+  .fila-exame {
+    font-size: 12px;
+    color: var(--text-sub);
+  }
+  .fila-horario {
+    font-size: 11px;
+    background: var(--blue-light);
+    color: var(--blue);
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .fila-chegada {
+    font-size: 11px;
+    color: var(--text-sub);
+  }
+  .fila-wait {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 20px;
+  }
+  .fila-wait.ok     { background: #dcfce7; color: #15803d; }
+  .fila-wait.warn   { background: #fef9c3; color: #92400e; }
+  .fila-wait.late   { background: #fee2e2; color: #dc2626; }
+
+  .fila-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .btn-chamar {
+    background: var(--orange);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: filter 0.12s;
+    white-space: nowrap;
+  }
+  .btn-chamar:hover { filter: brightness(1.1); }
+
+  .btn-atender {
+    background: var(--green-light);
+    color: var(--green);
+    border: 1.5px solid #86efac;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: filter 0.12s;
+    white-space: nowrap;
+  }
+  .btn-atender:hover { filter: brightness(0.95); }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-sub);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 14px; }
+  .empty-state h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+  .empty-state p  { font-size: 13px; }
+
+  /* Loading */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-sub);
+    font-size: 14px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1f2937;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 40px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 9999;
+    transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .fila-card { flex-wrap: wrap; }
+    .fila-actions { width: 100%; justify-content: flex-end; }
+    .btn-chamar, .btn-atender { flex: 1; text-align: center; }
+    .stats-bar { gap: 8px; }
+    .stat-pill .num { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-icon">🩺</div>
+    <h1>Painel do Médico</h1>
+    <p>Fila de espera em tempo real</p>
+    <input type="password" id="senhaInput" placeholder="Senha de acesso" autocomplete="current-password">
+    <button onclick="fazerLogin()">Entrar</button>
+    <div class="login-err" id="loginErr">Senha incorreta. Tente novamente.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-icon">🩺</div>
+      <div>
+        <div class="header h2" style="font-size:15px;font-weight:700;">Fila de Espera</div>
+        <div class="header-sub" id="headerSub">Carregando...</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-badge"><div class="live-dot"></div> AO VIVO</div>
+      <button class="btn-logout" onclick="sair()">Sair</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="stats-bar">
+      <div class="stat-pill green">
+        <div class="num" id="statAguardando">—</div>
+        <div class="lbl">Aguardando</div>
+      </div>
+      <div class="stat-pill">
+        <div class="num" id="statAtendidos">—</div>
+        <div class="lbl">Atendidos hoje</div>
+      </div>
+      <div class="stat-pill">
+        <div class="num" id="statEspera">—</div>
+        <div class="lbl">Tempo médio</div>
+      </div>
+    </div>
+
+    <div class="section-title">Ordem de chegada</div>
+    <div id="filaList">
+      <div class="loading"><div class="spinner"></div>Conectando ao Firebase...</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────
+const SENHA_MEDICO = 'MEDICO2025';   // ← Altere para a senha desejada
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDEl8iA89RQLD75WEtUnE2cGtRQam6kI8M",
+  authDomain:        "clinicaparticular.firebaseapp.com",
+  databaseURL:       "https://clinicaparticular-default-rtdb.firebaseio.com",
+  projectId:         "clinicaparticular",
+  storageBucket:     "clinicaparticular.firebasestorage.app",
+  messagingSenderId: "640766289975",
+  appId:             "1:640766289975:web:ed63707711b46e051bf7b2"
+};
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+
+// ── LOGIN ────────────────────────────────────────────────
+let logado = sessionStorage.getItem('medico_ok') === '1';
+if (logado) mostrarApp();
+
+document.getElementById('senhaInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') fazerLogin();
+});
+
+function fazerLogin() {
+  const v = document.getElementById('senhaInput').value.trim();
+  if (v === SENHA_MEDICO) {
+    sessionStorage.setItem('medico_ok', '1');
+    mostrarApp();
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+    document.getElementById('senhaInput').value = '';
+    document.getElementById('senhaInput').focus();
+  }
+}
+
+function sair() {
+  sessionStorage.removeItem('medico_ok');
+  location.reload();
+}
+
+function mostrarApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  iniciarListener();
+}
+
+// ── ESTADO ───────────────────────────────────────────────
+let filaAtual = [];   // array ordenado por chegadaTs
+let atendidosHoje = 0;
+
+// ── FIREBASE LISTENER ────────────────────────────────────
+function iniciarListener() {
+  // Fila de espera — atualização ao vivo
+  db.ref('agenda_l2/fila_espera').on('value', snap => {
+    const raw = snap.val() || {};
+    filaAtual = Object.entries(raw)
+      .map(([id, d]) => ({ id, ...d }))
+      .sort((a, b) => a.chegadaTs - b.chegadaTs);
+    renderFila();
+  });
+
+  // Contador de atendidos (pacientes em_atendimento ou que já passaram hoje)
+  db.ref('agenda_l2/dados').on('value', snap => {
+    if (!snap.exists()) return;
+    const dados = snap.val();
+    const ags = dados.agendamentos || [];
+    const hoje = new Date().toISOString().slice(0, 10);
+    atendidosHoje = ags.filter(a =>
+      (a.situacao === 'em_atendimento' || a.situacao === 'comprou') &&
+      (a.data || '').slice(0, 10) === hoje
+    ).length;
+    renderStats();
+  });
+
+  // Atualizar tempos de espera a cada minuto
+  setInterval(renderFila, 60000);
+}
+
+// ── RENDER ───────────────────────────────────────────────
+function renderFila() {
+  const list = document.getElementById('filaList');
+
+  if (filaAtual.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🟢</div>
+        <h3>Nenhum paciente na fila</h3>
+        <p>Quando o recepcionista marcar "Veio na consulta",<br>o paciente aparecerá aqui automaticamente.</p>
+      </div>`;
+    renderStats();
+    return;
+  }
+
+  list.innerHTML = filaAtual.map((p, i) => {
+    const isPrimeiro = i === 0;
+    const chegadaStr = formatarHora(p.chegadaTs);
+    const espera     = tempoEspera(p.chegadaTs);
+    const esperaCls  = espera.min < 15 ? 'ok' : espera.min < 30 ? 'warn' : 'late';
+
+    return `
+    <div class="fila-card ${isPrimeiro ? 'primeiro' : ''}">
+      <div class="fila-num">${isPrimeiro ? '▶' : (i + 1) + 'º'}</div>
+      <div class="fila-info">
+        <div class="fila-nome">${esc(p.nome)}</div>
+        <div class="fila-meta">
+          <span class="fila-exame">${esc(p.exame)}</span>
+          ${p.horario ? `<span class="fila-horario">🕐 ${esc(p.horario)}</span>` : ''}
+          <span class="fila-chegada">Chegou ${chegadaStr}</span>
+          <span class="fila-wait ${esperaCls}">⏱ ${espera.label}</span>
+        </div>
+      </div>
+      <div class="fila-actions">
+        ${isPrimeiro ? `<button class="btn-chamar" onclick="chamarPaciente('${p.id}','${esc(p.nome)}','${esc(p.exame)}')">📢 Chamar</button>` : ''}
+        <button class="btn-atender" onclick="marcarAtendendo('${p.id}','${esc(p.nome)}')">✅ Atender</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  renderStats();
+}
+
+function renderStats() {
+  document.getElementById('statAguardando').textContent = filaAtual.length;
+  document.getElementById('statAtendidos').textContent  = atendidosHoje;
+
+  if (filaAtual.length > 0) {
+    const mediaMin = Math.round(
+      filaAtual.reduce((s, p) => s + tempoEspera(p.chegadaTs).min, 0) / filaAtual.length
+    );
+    document.getElementById('statEspera').textContent = mediaMin + ' min';
+  } else {
+    document.getElementById('statEspera').textContent = '—';
+  }
+
+  const now = new Date();
+  document.getElementById('headerSub').textContent =
+    `Atualizado ${now.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' })}`;
+}
+
+// ── AÇÕES ────────────────────────────────────────────────
+async function chamarPaciente(id, nome, exame) {
+  try {
+    // Grava no painel da TV (igual ao sistema principal)
+    await db.ref('agenda_l2/painel').set({
+      status: 'chamando',
+      nome, exame,
+      ts: Date.now()
+    });
+    // Marca na fila como "sendo chamado"
+    await db.ref('agenda_l2/fila_espera/' + id + '/situacaoFila').set('chamado');
+    showToast(`📢 Chamando ${nome}...`);
+  } catch(e) {
+    showToast('❌ Erro ao chamar paciente');
+    console.error(e);
+  }
+}
+
+async function marcarAtendendo(id, nome) {
+  if (!confirm(`Marcar ${nome} como "Em atendimento"?\nEle será removido da fila de espera.`)) return;
+  try {
+    // Remove da fila
+    await db.ref('agenda_l2/fila_espera/' + id).remove();
+    // Para o painel da TV
+    await db.ref('agenda_l2/painel').set({ status:'parar', nome, ts:Date.now() });
+    showToast(`✅ ${nome} em atendimento`);
+  } catch(e) {
+    showToast('❌ Erro ao atualizar');
+    console.error(e);
+  }
+}
+
+// ── UTILS ────────────────────────────────────────────────
+function formatarHora(ts) {
+  return new Date(ts).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+}
+
+function tempoEspera(ts) {
+  const min = Math.floor((Date.now() - ts) / 60000);
+  let label;
+  if (min < 1)       label = 'agora';
+  else if (min === 1) label = '1 min';
+  else if (min < 60)  label = min + ' min';
+  else {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    label = h + 'h' + (m > 0 ? m + 'min' : '');
+  }
+  return { min, label };
+}
+
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
