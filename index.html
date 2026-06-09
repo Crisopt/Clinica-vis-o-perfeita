@@ -5443,12 +5443,62 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function medCarregarDados(agId) {
     const dados = medDados[agId];
     if (!dados) return;
-    // restaurar CIDs selecionados
+
+    // ── restaurar receita ─────────────────────────────────
+    if (dados.receita?.fields) {
+      const f = dados.receita.fields;
+      const mapa = {
+        'rx-paciente': f.paciente, 'rx-data': f.data, 'rx-nascimento': f.nasc,
+        'rx-cpf': f.cpf, 'rx-od-esf': f.od_esf, 'rx-od-cil': f.od_cil,
+        'rx-od-eixo': f.od_eixo, 'rx-od-dnp': f.od_dnp, 'rx-od-add': f.od_add,
+        'rx-od-av': f.od_av, 'rx-od-prisma': f.od_prisma, 'rx-od-base': f.od_base,
+        'rx-oe-esf': f.oe_esf, 'rx-oe-cil': f.oe_cil, 'rx-oe-eixo': f.oe_eixo,
+        'rx-oe-dnp': f.oe_dnp, 'rx-oe-add': f.oe_add, 'rx-oe-av': f.oe_av,
+        'rx-oe-prisma': f.oe_prisma, 'rx-oe-base': f.oe_base,
+        'rx-tipo': f.tipo, 'rx-validade': f.validade, 'rx-obs': f.obs,
+      };
+      Object.entries(mapa).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; });
+    }
+
+    // ── restaurar prontuário ──────────────────────────────
+    if (dados.prontuario?.fields) {
+      const f = dados.prontuario.fields;
+      const mapa = {
+        'pron-nome': f.nome, 'pron-nasc': f.nasc, 'pron-cpf': f.cpf,
+        'pron-rg': f.rg, 'pron-convenio': f.convenio, 'pron-tel': f.tel,
+        'pron-email': f.email, 'pron-dataconsulta': f.dataconsulta, 'pron-hora': f.hora,
+        'pron-tipo': f.tipo, 'pron-queixa': f.queixa, 'pron-hda': f.hda,
+        'pron-antecedentes': f.antecedentes, 'pron-familia': f.familia,
+        'pron-medicamentos': f.medicamentos, 'pron-av-od': f.av_od, 'pron-av-oe': f.av_oe,
+        'pron-pio': f.pio, 'pron-bio': f.bio, 'pron-outros': f.outros,
+        'pron-diagnostico': f.diagnostico, 'pron-conduta': f.conduta, 'pron-retorno': f.retorno,
+      };
+      Object.entries(mapa).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; });
+    }
+
+    // ── restaurar diagnóstico (CIDs) ──────────────────────
     if (dados.diagnostico?.cids) {
       cidsSelecionados = [...dados.diagnostico.cids];
       cidRenderSelecionados();
     }
-    if (dados.diagnostico?.obs) document.getElementById('cid-obs').value = dados.diagnostico.obs;
+    if (dados.diagnostico?.fields) {
+      const f = dados.diagnostico.fields;
+      const mapa = { 'cid-paciente': f.paciente, 'cid-data': f.data, 'cid-obs': f.obs };
+      Object.entries(mapa).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; });
+    } else if (dados.diagnostico?.obs) {
+      document.getElementById('cid-obs').value = dados.diagnostico.obs;
+    }
+
+    // ── restaurar atestado ────────────────────────────────
+    if (dados.atestado?.fields) {
+      const f = dados.atestado.fields;
+      const mapa = {
+        'at-paciente': f.paciente, 'at-cpf': f.cpf, 'at-tipo': f.tipoAfas,
+        'at-dias': f.dias, 'at-inicio': f.inicio, 'at-fim': f.fim,
+        'at-motivo': f.motivo, 'at-obs': f.obs, 'at-localdata': f.localdata,
+      };
+      Object.entries(mapa).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; });
+    }
   }
 
   // ── ABAS ────────────────────────────────────────────────
@@ -5669,6 +5719,29 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       };
     }
 
+    // ── propagar CPF e nascimento da receita para demais docs ──
+    if (tipo === 'receita') {
+      const cpf  = medDados[agId].receita.fields.cpf  || '';
+      const nasc = medDados[agId].receita.fields.nasc || '';
+
+      // prontuário
+      if (!medDados[agId].prontuario) medDados[agId].prontuario = { imgs: [] };
+      if (!medDados[agId].prontuario.fields) medDados[agId].prontuario.fields = {};
+      if (cpf)  { medDados[agId].prontuario.fields.cpf  = cpf;  const el = document.getElementById('pron-cpf');  if (el && !el.value) el.value = cpf; }
+      if (nasc) { medDados[agId].prontuario.fields.nasc = nasc; const el = document.getElementById('pron-nasc'); if (el && !el.value) el.value = nasc; }
+
+      // atestado
+      if (!medDados[agId].atestado) medDados[agId].atestado = { imgs: [] };
+      if (!medDados[agId].atestado.fields) medDados[agId].atestado.fields = {};
+      if (cpf)  { medDados[agId].atestado.fields.cpf  = cpf;  const el = document.getElementById('at-cpf');  if (el && !el.value) el.value = cpf; }
+
+      // diagnóstico (não tem campo CPF/nasc no form, apenas guarda no objeto para referência)
+      if (!medDados[agId].diagnostico) medDados[agId].diagnostico = { imgs: [], cids: [] };
+      if (!medDados[agId].diagnostico.fields) medDados[agId].diagnostico.fields = {};
+      if (cpf)  medDados[agId].diagnostico.fields.cpf  = cpf;
+      if (nasc) medDados[agId].diagnostico.fields.nasc = nasc;
+    }
+
     // ── gerar PDF e anexar como imagem na galeria ─────────
     const docElId = { receita:'docReceita', prontuario:'docProntuario', diagnostico:'docDiagnostico', atestado:'docAtestado' }[tipo];
     const docEl = document.getElementById(docElId);
@@ -5715,8 +5788,14 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     vendorRenderNav && vendorRenderNav();
 
     // ── feedback visual ───────────────────────────────────
-    const nomes = { receita:'Receita', prontuario:'Prontuário', diagnostico:'Diagnóstico', atestado:'Atestado' };
-    toast('✅', `${nomes[tipo] || tipo} salvo!`, 'Documento salvo e PDF gerado com sucesso.');
+    const mensagensSalvo = {
+      receita:     { titulo: '✅ Receita salva com sucesso!',     subtitulo: `Receita de ${medPacienteSelecionado.nome} registrada. CPF e data de nascimento replicados nos demais documentos.` },
+      prontuario:  { titulo: '✅ Prontuário salvo com sucesso!',   subtitulo: `Prontuário de ${medPacienteSelecionado.nome} registrado e PDF gerado.` },
+      diagnostico: { titulo: '✅ Diagnóstico salvo com sucesso!', subtitulo: `Diagnóstico (CID-10) de ${medPacienteSelecionado.nome} registrado e PDF gerado.` },
+      atestado:    { titulo: '✅ Atestado salvo com sucesso!',     subtitulo: `Atestado de ${medPacienteSelecionado.nome} registrado e PDF gerado.` },
+    };
+    const msg = mensagensSalvo[tipo] || { titulo: '✅ Documento salvo!', subtitulo: 'Salvo com sucesso.' };
+    toast('✅', msg.titulo, msg.subtitulo);
 
     // animação no botão salvar
     const btns = document.querySelectorAll(`#tab-${tipo} .btn-save-doc`);
