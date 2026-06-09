@@ -4117,10 +4117,14 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       if (!usuarioLogado) return;
       if (snap.exists()) { const obj = snap.val(); agendamentos = obj.agendamentos || []; notificacoes = obj.notificacoes || []; medDados = obj.medDados || {}; }
       renderCal(); renderTabela(); atualizarStats(); renderNotificacoes();
+      // Re-popular campos se medico ja tem paciente aberto (resolve atraso no celular/outro PC)
+      if (medPacienteSelecionado) {
+        medCarregarDados(medPacienteSelecionado.id);
+        medRenderGalerias();
+      }
       if (primeiroSnapshot) {
         primeiroSnapshot = false;
         verificarLembretes();
-        // Verificar a cada 60 segundos sem precisar recarregar a página
         if (_lembreteInterval) clearInterval(_lembreteInterval);
         _lembreteInterval = setInterval(() => {
           if (usuarioLogado) verificarLembretes();
@@ -5435,13 +5439,53 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       }
     });
 
-    // carregar dados salvos
-    medCarregarDados(id);
-    medRenderGalerias();
+    // carregar dados salvos — se medDados ainda vazio (Firebase ainda carregando),
+    // buscar direto do servidor para garantir no celular/outra máquina
+    if (!medDados[id]) {
+      db.ref('agenda_l2/dados').get().then(snap => {
+        if (snap.exists()) {
+          const obj = snap.val();
+          medDados = obj.medDados || medDados;
+        }
+        medCarregarDados(id);
+        medRenderGalerias();
+      }).catch(() => {
+        medCarregarDados(id);
+        medRenderGalerias();
+      });
+    } else {
+      medCarregarDados(id);
+      medRenderGalerias();
+    }
   }
 
   function medCarregarDados(agId) {
     const dados = medDados[agId];
+    const ag = agendamentos.find(a => a.id === agId);
+
+    // ── Sempre preencher campos básicos do agendamento (nome, tel, data)
+    //    independente de ter dados salvos — garante que o médico já vê
+    //    as informações do paciente sem precisar digitar nada
+    if (ag) {
+      const hoje = new Date().toISOString().split('T')[0];
+      const setIfEmpty = (id, val) => { const el = document.getElementById(id); if (el && !el.value && val) el.value = val; };
+      setIfEmpty('rx-paciente',      ag.nome);
+      setIfEmpty('rx-data',          ag.data || hoje);
+      setIfEmpty('cid-paciente',     ag.nome);
+      setIfEmpty('cid-data',         ag.data || hoje);
+      setIfEmpty('pron-nome',        ag.nome);
+      setIfEmpty('pron-tel',         ag.tel);
+      setIfEmpty('pron-dataconsulta',ag.data || hoje);
+      setIfEmpty('at-paciente',      ag.nome);
+    }
+
+    // ── Se há dados salvos, abrir os modelos automaticamente
+    if (dados) {
+      if (dados.receita?.fields)    { const m = document.getElementById('modelo-receita');    const b = document.getElementById('toggle-receita');    if (m && !m.classList.contains('open')) { m.classList.add('open'); if(b) { b.classList.add('active'); b.textContent='Ocultar modelo'; } } }
+      if (dados.prontuario?.fields) { const m = document.getElementById('modelo-prontuario'); const b = document.getElementById('toggle-prontuario'); if (m && !m.classList.contains('open')) { m.classList.add('open'); if(b) { b.classList.add('active'); b.textContent='Ocultar modelo'; } } }
+      if (dados.atestado?.fields)   { const m = document.getElementById('modelo-atestado');   const b = document.getElementById('toggle-atestado');   if (m && !m.classList.contains('open')) { m.classList.add('open'); if(b) { b.classList.add('active'); b.textContent='Ocultar modelo'; } } }
+    }
+
     if (!dados) return;
 
     // ── restaurar receita ─────────────────────────────────
@@ -5719,27 +5763,40 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       };
     }
 
-    // ── propagar CPF e nascimento da receita para demais docs ──
+    // ── propagar dados do paciente da receita para prontuário, diagnóstico e atestado ──
     if (tipo === 'receita') {
+      const ag   = medPacienteSelecionado;
       const cpf  = medDados[agId].receita.fields.cpf  || '';
       const nasc = medDados[agId].receita.fields.nasc || '';
+      const nome = ag.nome || '';
+      const tel  = ag.tel  || '';
+      const data = ag.data || '';
 
-      // prontuário
+      // ── prontuário: propagar nome, tel, data, CPF e nascimento ──
       if (!medDados[agId].prontuario) medDados[agId].prontuario = { imgs: [] };
       if (!medDados[agId].prontuario.fields) medDados[agId].prontuario.fields = {};
-      if (cpf)  { medDados[agId].prontuario.fields.cpf  = cpf;  const el = document.getElementById('pron-cpf');  if (el && !el.value) el.value = cpf; }
-      if (nasc) { medDados[agId].prontuario.fields.nasc = nasc; const el = document.getElementById('pron-nasc'); if (el && !el.value) el.value = nasc; }
+      const pf = medDados[agId].prontuario.fields;
+      if (!pf.nome && nome) { pf.nome = nome; const el = document.getElementById('pron-nome'); if (el && !el.value) el.value = nome; }
+      if (!pf.tel  && tel)  { pf.tel  = tel;  const el = document.getElementById('pron-tel');  if (el && !el.value) el.value = tel;  }
+      if (!pf.dataconsulta && data) { pf.dataconsulta = data; const el = document.getElementById('pron-dataconsulta'); if (el && !el.value) el.value = data; }
+      if (cpf)  { pf.cpf  = cpf;  const el = document.getElementById('pron-cpf');  if (el && !el.value) el.value = cpf;  }
+      if (nasc) { pf.nasc = nasc; const el = document.getElementById('pron-nasc'); if (el && !el.value) el.value = nasc; }
 
-      // atestado
+      // ── atestado: propagar nome, CPF ──
       if (!medDados[agId].atestado) medDados[agId].atestado = { imgs: [] };
       if (!medDados[agId].atestado.fields) medDados[agId].atestado.fields = {};
-      if (cpf)  { medDados[agId].atestado.fields.cpf  = cpf;  const el = document.getElementById('at-cpf');  if (el && !el.value) el.value = cpf; }
+      const af = medDados[agId].atestado.fields;
+      if (!af.paciente && nome) { af.paciente = nome; const el = document.getElementById('at-paciente'); if (el && !el.value) el.value = nome; }
+      if (cpf)  { af.cpf  = cpf;  const el = document.getElementById('at-cpf');  if (el && !el.value) el.value = cpf;  }
 
-      // diagnóstico (não tem campo CPF/nasc no form, apenas guarda no objeto para referência)
+      // ── diagnóstico: propagar nome, data e dados de referência ──
       if (!medDados[agId].diagnostico) medDados[agId].diagnostico = { imgs: [], cids: [] };
       if (!medDados[agId].diagnostico.fields) medDados[agId].diagnostico.fields = {};
-      if (cpf)  medDados[agId].diagnostico.fields.cpf  = cpf;
-      if (nasc) medDados[agId].diagnostico.fields.nasc = nasc;
+      const df = medDados[agId].diagnostico.fields;
+      if (!df.paciente && nome) { df.paciente = nome; const el = document.getElementById('cid-paciente'); if (el && !el.value) el.value = nome; }
+      if (!df.data && data)     { df.data = data;     const el = document.getElementById('cid-data');     if (el && !el.value) el.value = data;     }
+      if (cpf)  df.cpf  = cpf;
+      if (nasc) df.nasc = nasc;
     }
 
     // ── gerar PDF e anexar como imagem na galeria ─────────
