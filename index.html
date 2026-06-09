@@ -4117,8 +4117,9 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       if (!usuarioLogado) return;
       if (snap.exists()) { const obj = snap.val(); agendamentos = obj.agendamentos || []; notificacoes = obj.notificacoes || []; medDados = obj.medDados || {}; }
       renderCal(); renderTabela(); atualizarStats(); renderNotificacoes();
-      // Re-popular campos se medico ja tem paciente aberto (resolve atraso no celular/outro PC)
+      // Re-popular campos se médico já tem paciente aberto (resolve atraso no celular/outro PC)
       if (medPacienteSelecionado) {
+        medLimparCampos && medLimparCampos();
         medCarregarDados(medPacienteSelecionado.id);
         medRenderGalerias();
       }
@@ -5460,90 +5461,93 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   }
 
   function medCarregarDados(agId) {
-    const dados = medDados[agId];
-    const ag = agendamentos.find(a => a.id === agId);
+    const dados = medDados[agId] || {};
+    const ag    = agendamentos.find(a => a.id === agId);
+    const hoje  = new Date().toISOString().split('T')[0];
 
-    // ── Sempre preencher campos básicos do agendamento (nome, tel, data)
-    //    independente de ter dados salvos — garante que o médico já vê
-    //    as informações do paciente sem precisar digitar nada
+    const set = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val !== undefined && val !== null && val !== '') el.value = val;
+    };
+
+    // ── 1. Preencher campos básicos sempre do agendamento ──
     if (ag) {
-      const hoje = new Date().toISOString().split('T')[0];
-      const setIfEmpty = (id, val) => { const el = document.getElementById(id); if (el && !el.value && val) el.value = val; };
-      setIfEmpty('rx-paciente',      ag.nome);
-      setIfEmpty('rx-data',          ag.data || hoje);
-      setIfEmpty('cid-paciente',     ag.nome);
-      setIfEmpty('cid-data',         ag.data || hoje);
-      setIfEmpty('pron-nome',        ag.nome);
-      setIfEmpty('pron-tel',         ag.tel);
-      setIfEmpty('pron-dataconsulta',ag.data || hoje);
-      setIfEmpty('at-paciente',      ag.nome);
+      set('rx-paciente',       ag.nome);
+      set('rx-data',           ag.data || hoje);
+      set('cid-paciente',      ag.nome);
+      set('cid-data',          ag.data || hoje);
+      set('pron-nome',         ag.nome);
+      set('pron-tel',          ag.tel);
+      set('pron-dataconsulta', ag.data || hoje);
+      set('at-paciente',       ag.nome);
     }
 
-    // ── Se há dados salvos, abrir os modelos automaticamente
-    if (dados) {
-      if (dados.receita?.fields)    { const m = document.getElementById('modelo-receita');    const b = document.getElementById('toggle-receita');    if (m && !m.classList.contains('open')) { m.classList.add('open'); if(b) { b.classList.add('active'); b.textContent='Ocultar modelo'; } } }
-      if (dados.prontuario?.fields) { const m = document.getElementById('modelo-prontuario'); const b = document.getElementById('toggle-prontuario'); if (m && !m.classList.contains('open')) { m.classList.add('open'); if(b) { b.classList.add('active'); b.textContent='Ocultar modelo'; } } }
-      if (dados.atestado?.fields)   { const m = document.getElementById('modelo-atestado');   const b = document.getElementById('toggle-atestado');   if (m && !m.classList.contains('open')) { m.classList.add('open'); if(b) { b.classList.add('active'); b.textContent='Ocultar modelo'; } } }
-    }
-
-    if (!dados) return;
-
-    // ── restaurar receita ─────────────────────────────────
+    // ── 2. Sobrescrever com fields salvos (têm prioridade) ──
     if (dados.receita?.fields) {
       const f = dados.receita.fields;
-      const mapa = {
-        'rx-paciente': f.paciente, 'rx-data': f.data, 'rx-nascimento': f.nasc,
-        'rx-cpf': f.cpf, 'rx-od-esf': f.od_esf, 'rx-od-cil': f.od_cil,
-        'rx-od-eixo': f.od_eixo, 'rx-od-dnp': f.od_dnp, 'rx-od-add': f.od_add,
-        'rx-od-av': f.od_av, 'rx-od-prisma': f.od_prisma, 'rx-od-base': f.od_base,
-        'rx-oe-esf': f.oe_esf, 'rx-oe-cil': f.oe_cil, 'rx-oe-eixo': f.oe_eixo,
-        'rx-oe-dnp': f.oe_dnp, 'rx-oe-add': f.oe_add, 'rx-oe-av': f.oe_av,
-        'rx-oe-prisma': f.oe_prisma, 'rx-oe-base': f.oe_base,
-        'rx-tipo': f.tipo, 'rx-validade': f.validade, 'rx-obs': f.obs,
-      };
-      Object.entries(mapa).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; });
+      set('rx-paciente',  f.paciente); set('rx-data',      f.data);
+      set('rx-nascimento',f.nasc);     set('rx-cpf',        f.cpf);
+      set('rx-od-esf',    f.od_esf);   set('rx-od-cil',     f.od_cil);
+      set('rx-od-eixo',   f.od_eixo);  set('rx-od-dnp',     f.od_dnp);
+      set('rx-od-add',    f.od_add);   set('rx-od-av',      f.od_av);
+      set('rx-od-prisma', f.od_prisma);set('rx-od-base',    f.od_base);
+      set('rx-oe-esf',    f.oe_esf);   set('rx-oe-cil',     f.oe_cil);
+      set('rx-oe-eixo',   f.oe_eixo);  set('rx-oe-dnp',     f.oe_dnp);
+      set('rx-oe-add',    f.oe_add);   set('rx-oe-av',      f.oe_av);
+      set('rx-oe-prisma', f.oe_prisma);set('rx-oe-base',    f.oe_base);
+      set('rx-tipo',      f.tipo);     set('rx-validade',   f.validade);
+      set('rx-obs',       f.obs);
+      // abrir modelo
+      const m = document.getElementById('modelo-receita');
+      const b = document.getElementById('toggle-receita');
+      if (m && !m.classList.contains('open')) { m.classList.add('open'); if(b){b.classList.add('active');b.textContent='Ocultar modelo';} }
     }
 
-    // ── restaurar prontuário ──────────────────────────────
     if (dados.prontuario?.fields) {
       const f = dados.prontuario.fields;
-      const mapa = {
-        'pron-nome': f.nome, 'pron-nasc': f.nasc, 'pron-cpf': f.cpf,
-        'pron-rg': f.rg, 'pron-convenio': f.convenio, 'pron-tel': f.tel,
-        'pron-email': f.email, 'pron-dataconsulta': f.dataconsulta, 'pron-hora': f.hora,
-        'pron-tipo': f.tipo, 'pron-queixa': f.queixa, 'pron-hda': f.hda,
-        'pron-antecedentes': f.antecedentes, 'pron-familia': f.familia,
-        'pron-medicamentos': f.medicamentos, 'pron-av-od': f.av_od, 'pron-av-oe': f.av_oe,
-        'pron-pio': f.pio, 'pron-bio': f.bio, 'pron-outros': f.outros,
-        'pron-diagnostico': f.diagnostico, 'pron-conduta': f.conduta, 'pron-retorno': f.retorno,
-      };
-      Object.entries(mapa).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; });
+      set('pron-nome',        f.nome);  set('pron-nasc',        f.nasc);
+      set('pron-cpf',         f.cpf);   set('pron-rg',          f.rg);
+      set('pron-convenio',    f.convenio); set('pron-tel',       f.tel);
+      set('pron-email',       f.email); set('pron-dataconsulta',f.dataconsulta);
+      set('pron-hora',        f.hora);  set('pron-tipo',        f.tipo);
+      set('pron-queixa',      f.queixa);set('pron-hda',         f.hda);
+      set('pron-antecedentes',f.antecedentes); set('pron-familia',f.familia);
+      set('pron-medicamentos',f.medicamentos); set('pron-av-od', f.av_od);
+      set('pron-av-oe',       f.av_oe); set('pron-pio',         f.pio);
+      set('pron-bio',         f.bio);   set('pron-outros',      f.outros);
+      set('pron-diagnostico', f.diagnostico); set('pron-conduta',f.conduta);
+      set('pron-retorno',     f.retorno);
+      // abrir modelo
+      const m = document.getElementById('modelo-prontuario');
+      const b = document.getElementById('toggle-prontuario');
+      if (m && !m.classList.contains('open')) { m.classList.add('open'); if(b){b.classList.add('active');b.textContent='Ocultar modelo';} }
     }
 
-    // ── restaurar diagnóstico (CIDs) ──────────────────────
     if (dados.diagnostico?.cids) {
       cidsSelecionados = [...dados.diagnostico.cids];
       cidRenderSelecionados();
     }
     if (dados.diagnostico?.fields) {
       const f = dados.diagnostico.fields;
-      const mapa = { 'cid-paciente': f.paciente, 'cid-data': f.data, 'cid-obs': f.obs };
-      Object.entries(mapa).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; });
+      set('cid-paciente', f.paciente); set('cid-data', f.data); set('cid-obs', f.obs);
     } else if (dados.diagnostico?.obs) {
-      document.getElementById('cid-obs').value = dados.diagnostico.obs;
+      set('cid-obs', dados.diagnostico.obs);
     }
 
-    // ── restaurar atestado ────────────────────────────────
     if (dados.atestado?.fields) {
       const f = dados.atestado.fields;
-      const mapa = {
-        'at-paciente': f.paciente, 'at-cpf': f.cpf, 'at-tipo': f.tipoAfas,
-        'at-dias': f.dias, 'at-inicio': f.inicio, 'at-fim': f.fim,
-        'at-motivo': f.motivo, 'at-obs': f.obs, 'at-localdata': f.localdata,
-      };
-      Object.entries(mapa).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; });
+      set('at-paciente', f.paciente); set('at-cpf',     f.cpf);
+      set('at-tipo',     f.tipoAfas); set('at-dias',    f.dias);
+      set('at-inicio',   f.inicio);   set('at-fim',     f.fim);
+      set('at-motivo',   f.motivo);   set('at-obs',     f.obs);
+      set('at-localdata',f.localdata);
+      // abrir modelo
+      const m = document.getElementById('modelo-atestado');
+      const b = document.getElementById('toggle-atestado');
+      if (m && !m.classList.contains('open')) { m.classList.add('open'); if(b){b.classList.add('active');b.textContent='Ocultar modelo';} }
     }
   }
+
 
   // ── ABAS ────────────────────────────────────────────────
   function medAbrirAba(aba, btn) {
