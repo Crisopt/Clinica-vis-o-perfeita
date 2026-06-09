@@ -4094,7 +4094,25 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   async function salvar() {
     if (!usuarioLogado) return;
-    try { await db.ref('agenda_l2/dados').set({ agendamentos, notificacoes, medDados, ts: Date.now() }); }
+    try {
+      // Remover PDFs gerados automaticamente antes de gravar — eles são enormes em base64
+      // e podem ultrapassar o limite do Firebase (10MB). São recriados na hora ao abrir.
+      const medDadosParaSalvar = {};
+      Object.entries(medDados).forEach(([agId, tiposDados]) => {
+        medDadosParaSalvar[agId] = {};
+        Object.entries(tiposDados).forEach(([tipo, val]) => {
+          if (val && Array.isArray(val.imgs)) {
+            medDadosParaSalvar[agId][tipo] = {
+              ...val,
+              imgs: val.imgs.filter(img => !img.isPdfGerado),
+            };
+          } else {
+            medDadosParaSalvar[agId][tipo] = val;
+          }
+        });
+      });
+      await db.ref('agenda_l2/dados').set({ agendamentos, notificacoes, medDados: medDadosParaSalvar, ts: Date.now() });
+    }
     catch(e) { console.warn('Firebase write error', e); toast('⚠️','Erro ao salvar','Verifique sua conexão.'); }
   }
 
@@ -5587,9 +5605,33 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        medDados[agId][tipo].imgs.push({ src: ev.target.result, nome: file.name, ts: Date.now() });
-        medRenderGaleria(tipo);
-        toast('📎','Arquivo anexado',file.name);
+        const src = ev.target.result;
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        if (isPdf) {
+          // PDFs físicos: guardar normalmente (usuário decide anexar)
+          medDados[agId][tipo].imgs.push({ src, nome: file.name, ts: Date.now(), isPdf: true });
+          medRenderGaleria(tipo);
+          toast('📎','Arquivo anexado', file.name);
+        } else {
+          // Imagens: comprimir antes de guardar para não estourar o Firebase
+          const img = new Image();
+          img.onload = () => {
+            const MAX = 1200;
+            let w = img.width, h = img.height;
+            if (w > MAX || h > MAX) {
+              if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+              else       { w = Math.round(w * MAX / h); h = MAX; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            const comprimida = canvas.toDataURL('image/jpeg', 0.75);
+            medDados[agId][tipo].imgs.push({ src: comprimida, nome: file.name, ts: Date.now() });
+            medRenderGaleria(tipo);
+            toast('📎','Foto anexada', file.name);
+          };
+          img.src = src;
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -5803,12 +5845,11 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       if (nasc) df.nasc = nasc;
     }
 
-    // ── gerar PDF e anexar como imagem na galeria ─────────
+    // ── gerar PDF para preview local (NÃO vai ao Firebase — apenas exibição) ──
     const docElId = { receita:'docReceita', prontuario:'docProntuario', diagnostico:'docDiagnostico', atestado:'docAtestado' }[tipo];
     const docEl = document.getElementById(docElId);
     if (docEl && window.html2canvas && window.jspdf) {
       try {
-        // garantir modelo visível para captura
         const modelBody = document.getElementById('modelo-' + tipo);
         const eraFechado = modelBody && !modelBody.classList.contains('open');
         if (eraFechado) modelBody.classList.add('open');
@@ -5820,23 +5861,17 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         const pdfW = pdf.internal.pageSize.getWidth();
         const pdfH = (canvas.height * pdfW) / canvas.width;
         pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH > 297 ? 297 : pdfH);
-        const pdfBase64 = pdf.output('datauristring'); // data:application/pdf;base64,...
+        const pdfBase64 = pdf.output('datauristring');
 
         if (eraFechado) modelBody.classList.remove('open');
 
-        // remover PDF anterior gerado automaticamente (identificados por isPdfGerado=true)
+        // Manter apenas na memória local (isPdfGerado=true são filtrados pelo salvar())
         if (!medDados[agId][tipo].imgs) medDados[agId][tipo].imgs = [];
         medDados[agId][tipo].imgs = medDados[agId][tipo].imgs.filter(i => !i.isPdfGerado);
-
-        // adicionar novo PDF gerado
         const nomesPt = { receita:'Receita', prontuario:'Prontuario', diagnostico:'Diagnostico', atestado:'Atestado' };
         const nomePdf = `${nomesPt[tipo]}_${(medPacienteSelecionado.nome||'paciente').replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
         medDados[agId][tipo].imgs.push({
-          src:         pdfBase64,
-          nome:        nomePdf,
-          ts:          Date.now(),
-          isPdfGerado: true,
-          isPdf:       true,
+          src: pdfBase64, nome: nomePdf, ts: Date.now(), isPdfGerado: true, isPdf: true,
         });
         medRenderGaleria(tipo);
       } catch(e) {
