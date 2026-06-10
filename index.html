@@ -2780,7 +2780,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   .med-tab-content.active { display: block !important; padding: 0 !important; }
   .med-model-body { display: block !important; padding: 0 !important; }
   .med-doc { border: none !important; max-width: 100% !important; box-shadow: none !important; }
-  .med-doc input, .med-doc textarea, .med-doc select { background: transparent !important; border: none !important; border-bottom: 1px solid #ccc !important; border-radius: 0 !important; }
+  .med-doc input, .med-doc textarea, .med-doc select { display: none !important; }
+  .med-doc .print-valor { display: inline-block !important; border-bottom: 1px solid #aaa !important; min-width: 80px; padding: 1px 2px; font-size: 13px; color: #000; }
 }
 </style>
 </head>
@@ -3386,226 +3387,116 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
               </div>
             </div>
             <div class="med-model-body" id="modelo-receita">
-              <div class="med-doc rx-prescrição" id="docReceita">
-
-                <!-- ══ ESTILOS INTERNOS DA RECEITA ══ -->
-                <style>
-                  .rx-prescrição { font-family: Arial, Helvetica, sans-serif; background:#fff; color:#1a2060; max-width:640px; margin:0 auto; padding:20px 24px 16px; border:1.5px solid #c8cfe8; border-radius:6px; }
-                  .rx-header { display:flex; align-items:flex-start; gap:14px; margin-bottom:12px; }
-                  .rx-caduceu svg { width:70px; height:70px; }
-                  .rx-titulo { flex:1; text-align:center; }
-                  .rx-titulo h2 { font-size:26px; font-weight:900; color:#1a2060; line-height:1.1; margin:0 0 3px; letter-spacing:1px; }
-                  .rx-titulo p  { font-size:8.5px; color:#444; line-height:1.4; margin:4px 0 0; text-align:center; max-width:340px; margin:4px auto 0; }
-                  .rx-divider { border:none; border-top:2px solid #1a2060; margin:8px 0 10px; }
-                  /* Para o Sr(a) */
-                  .rx-para-row { display:flex; align-items:flex-end; gap:8px; margin-bottom:6px; }
-                  .rx-para-label { font-size:14px; font-weight:700; color:#1a2060; white-space:nowrap; }
-                  .rx-para-row input[type=text], .rx-para-row input[type=date] { border:none; border-bottom:1.5px solid #1a2060; border-radius:0; background:transparent; font-size:13px; color:#1a2060; padding:2px 4px; outline:none; width:100%; }
-                  .rx-para-row input[type=text]:focus, .rx-para-row input[type=date]:focus { background:#f0f4ff; }
-                  .rx-idade-wrap { display:flex; align-items:flex-end; gap:6px; white-space:nowrap; }
-                  .rx-idade-wrap label { font-size:13px; font-weight:700; }
-                  .rx-idade-wrap input { width:80px; border:none; border-bottom:1.5px solid #1a2060; border-radius:0; background:transparent; font-size:13px; color:#1a2060; padding:2px 4px; outline:none; }
-                  /* Linha CPF */
-                  .rx-cpf-row { display:flex; gap:16px; margin-bottom:10px; }
-                  .rx-cpf-row .rx-field { display:flex; align-items:flex-end; gap:6px; }
-                  .rx-cpf-row .rx-field label { font-size:12px; font-weight:700; white-space:nowrap; }
-                  .rx-cpf-row .rx-field input { border:none; border-bottom:1.5px solid #1a2060; border-radius:0; background:transparent; font-size:12px; color:#1a2060; padding:2px 4px; outline:none; }
-                  .rx-cpf-row .rx-field input:focus { background:#f0f4ff; }
-                  /* Tabela de graus */
-                  .rx-tabela { width:100%; border-collapse:collapse; margin-bottom:10px; }
-                  .rx-tabela th { background:#1a2060; color:#fff; font-size:12px; font-weight:700; text-align:center; padding:5px 4px; border:1.5px solid #1a2060; }
-                  .rx-tabela td { border:1.5px solid #1a2060; padding:2px 3px; vertical-align:middle; }
-                  .rx-tabela td.rx-row-label { background:#1a2060; color:#fff; font-size:11px; font-weight:700; text-align:center; width:42px; }
-                  .rx-tabela td.rx-adicao-label { background:#1a2060; color:#fff; font-size:10px; font-weight:700; text-align:center; writing-mode:vertical-rl; transform:rotate(180deg); width:22px; padding:6px 3px; }
-                  .rx-tabela td.rx-sub-label { background:#e8ecf8; font-size:10px; font-weight:700; text-align:center; color:#1a2060; width:32px; }
-                  .rx-tabela input[type=text] { width:100%; min-width:54px; border:none; background:transparent; font-size:12px; color:#1a2060; text-align:center; padding:3px 2px; outline:none; }
-                  .rx-tabela input[type=text]:focus { background:#f0f4ff; }
-                  /* Linha vazia de cabeçalho esquerda */
-                  .rx-tabela th.rx-th-empty { background:#1a2060; width:42px; }
-                  /* Tipos de lentes e tratamentos */
-                  .rx-bottom { display:flex; gap:16px; margin-bottom:8px; }
-                  .rx-bottom-col { flex:1; }
-                  .rx-box-label { display:inline-block; border:1.5px solid #1a2060; border-radius:4px; font-size:12px; font-weight:700; color:#1a2060; padding:3px 10px; margin-bottom:6px; }
-                  .rx-checks { font-size:12px; color:#1a2060; display:flex; flex-direction:column; gap:3px; }
-                  .rx-checks label { display:flex; align-items:center; gap:5px; cursor:pointer; }
-                  .rx-checks input[type=checkbox] { accent-color:#1a2060; width:13px; height:13px; }
-                  /* Observações */
-                  .rx-obs-row { margin-bottom:8px; }
-                  .rx-obs-row label { font-size:13px; font-weight:700; color:#1a2060; display:block; margin-bottom:2px; }
-                  .rx-obs-row textarea { width:100%; border:none; border-bottom:1.5px solid #1a2060; border-radius:0; resize:none; font-size:12px; color:#1a2060; background:transparent; outline:none; padding:2px 4px; min-height:38px; font-family:Arial,sans-serif; box-sizing:border-box; }
-                  .rx-obs-row textarea:focus { background:#f0f4ff; }
-                  /* Rodapé de avisos */
-                  .rx-avisos { font-size:9.5px; color:#1a2060; line-height:1.5; margin-bottom:14px; border-top:1px solid #c8cfe8; padding-top:6px; }
-                  /* Assinatura */
-                  .rx-assinatura { display:flex; align-items:flex-end; gap:24px; margin-top:8px; }
-                  .rx-local-data { flex:1; display:flex; flex-direction:column; gap:3px; }
-                  .rx-local-data input { border:none; border-bottom:1.5px solid #1a2060; border-radius:0; background:transparent; font-size:12px; color:#1a2060; padding:2px 4px; outline:none; width:100%; }
-                  .rx-local-data input:focus { background:#f0f4ff; }
-                  .rx-local-data span { font-size:10px; color:#888; }
-                  .rx-stamp-col { text-align:center; min-width:180px; }
-                  .rx-stamp-line { border-top:1.5px solid #1a2060; margin-bottom:3px; }
-                  .rx-stamp-name { font-size:12px; font-weight:700; color:#1a2060; }
-                  .rx-stamp-crm  { font-size:10px; color:#444; }
-                </style>
-
-                <!-- ══ CABEÇALHO ══ -->
-                <div class="rx-header">
-                  <!-- Caduceu SVG fiel ao original -->
-                  <div class="rx-caduceu">
-                    <svg viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg" fill="none">
-                      <!-- olho no topo -->
-                      <ellipse cx="60" cy="10" rx="14" ry="8" stroke="#1a2060" stroke-width="3" fill="none"/>
-                      <circle cx="60" cy="10" r="4" fill="#1a2060"/>
-                      <!-- vara central -->
-                      <line x1="60" y1="18" x2="60" y2="118" stroke="#1a2060" stroke-width="4"/>
-                      <!-- serpente esquerda -->
-                      <path d="M60 30 C40 38, 40 52, 60 58 C40 64, 40 78, 60 84 C40 90, 40 104, 60 110" stroke="#1a2060" stroke-width="2.5" fill="none"/>
-                      <!-- serpente direita -->
-                      <path d="M60 30 C80 38, 80 52, 60 58 C80 64, 80 78, 60 84 C80 90, 80 104, 60 110" stroke="#1a2060" stroke-width="2.5" fill="none"/>
-                      <!-- asas -->
-                      <path d="M60 28 C50 20, 28 18, 20 26 C28 22, 48 28, 60 36" stroke="#1a2060" stroke-width="2" fill="#d0d8f0"/>
-                      <path d="M60 28 C70 20, 92 18, 100 26 C92 22, 72 28, 60 36" stroke="#1a2060" stroke-width="2" fill="#d0d8f0"/>
-                      <!-- base -->
-                      <path d="M50 118 Q60 124 70 118" stroke="#1a2060" stroke-width="2.5" fill="none"/>
-                    </svg>
-                  </div>
-                  <div class="rx-titulo">
-                    <h2>PRESCRIÇÃO<br>OPTOMÉTRICA</h2>
-                    <p>O presente exame efetuado pelo optometrista, tem por finalidade a correção dos defeitos refrativos, a avaliação sensorial e motora, através da indicação de lentes corretoras refrativas e/ou exercícios ortópticos. O diagnóstico de doenças oculares e seu tratamento são de competência do profissional médico.</p>
-                  </div>
-                </div>
-                <hr class="rx-divider">
-
-                <!-- ══ PARA O SR(A) / IDADE ══ -->
-                <div class="rx-para-row">
-                  <span class="rx-para-label">Para o Sr(a).:</span>
-                  <input type="text" id="rx-paciente" placeholder="Nome completo do paciente" style="flex:1;">
-                  <div class="rx-idade-wrap">
-                    <label>Idade:</label>
-                    <input type="text" id="rx-idade" placeholder="__">
-                  </div>
+              <div class="med-doc" id="docReceita">
+                <div class="med-doc-header">
+                  <h2>RECEITA OFTALMOLÓGICA</h2>
+                  <p>Clínica Visão Perfeita</p>
                 </div>
 
-                <!-- ══ CPF / NASCIMENTO / DATA ══ -->
-                <div class="rx-cpf-row">
-                  <div class="rx-field">
-                    <label>CPF:</label>
-                    <input type="text" id="rx-cpf" placeholder="000.000.000-00" style="width:140px;">
-                  </div>
-                  <div class="rx-field">
-                    <label>Nascimento:</label>
-                    <input type="date" id="rx-nascimento" style="width:140px;">
-                  </div>
-                  <div class="rx-field" style="margin-left:auto;">
-                    <label>Data:</label>
-                    <input type="date" id="rx-data" style="width:140px;">
-                  </div>
-                </div>
-
-                <!-- ══ TABELA DE GRAUS ══ -->
-                <table class="rx-tabela">
-                  <thead>
-                    <tr>
-                      <th class="rx-th-empty"></th>
-                      <th>Esférico</th>
-                      <th>Cilíndrico</th>
-                      <th>Eixo</th>
-                      <th>AV</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <!-- OD -->
-                    <tr>
-                      <td class="rx-row-label">OD</td>
-                      <td><input type="text" id="rx-od-esf"  placeholder="ex: -2,50"></td>
-                      <td><input type="text" id="rx-od-cil"  placeholder="ex: -0,75"></td>
-                      <td><input type="text" id="rx-od-eixo" placeholder="ex: 90°"></td>
-                      <td><input type="text" id="rx-od-av"   placeholder="20/20"></td>
-                    </tr>
-                    <!-- OE -->
-                    <tr>
-                      <td class="rx-row-label">OE</td>
-                      <td><input type="text" id="rx-oe-esf"  placeholder="ex: -1,75"></td>
-                      <td><input type="text" id="rx-oe-cil"  placeholder="ex: -0,50"></td>
-                      <td><input type="text" id="rx-oe-eixo" placeholder="ex: 85°"></td>
-                      <td><input type="text" id="rx-oe-av"   placeholder="20/20"></td>
-                    </tr>
-                    <!-- ADIÇÃO — linha com rowspan e sub-colunas DNP / CO / PL -->
-                    <tr>
-                      <td class="rx-adicao-label" rowspan="2">ADIÇÃO</td>
-                      <td><input type="text" id="rx-od-add"  placeholder="+2,00"></td>
-                      <td class="rx-sub-label" rowspan="2">DNP</td>
-                      <td class="rx-sub-label">CO</td>
-                      <td><input type="text" id="rx-co" placeholder=""></td>
-                    </tr>
-                    <tr>
-                      <td><input type="text" id="rx-oe-add"  placeholder="+2,00"></td>
-                      <td class="rx-sub-label">PL</td>
-                      <td><input type="text" id="rx-pl" placeholder=""></td>
-                    </tr>
-                    <!-- DNP OD / OE -->
-                    <tr>
-                      <td class="rx-row-label" style="font-size:9px;">DNP</td>
-                      <td><input type="text" id="rx-od-dnp" placeholder="OD mm"></td>
-                      <td><input type="text" id="rx-oe-dnp" placeholder="OE mm"></td>
-                      <td colspan="2" style="font-size:10px;color:#888;text-align:center;">Distância naso-pupilar</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <!-- ══ TIPOS DE LENTES / TRATAMENTOS ══ -->
-                <div class="rx-bottom">
-                  <div class="rx-bottom-col">
-                    <span class="rx-box-label">Tipos de Lentes:</span>
-                    <div class="rx-checks">
-                      <label><input type="checkbox" id="rx-lente-bifocal-ultex">  Bifocal Ultex</label>
-                      <label><input type="checkbox" id="rx-lente-progressiva">    Progressivas</label>
-                      <label><input type="checkbox" id="rx-lente-bifocal-kriptok">Bifocal Kriptok</label>
-                      <label><input type="checkbox" id="rx-lente-visao-simples">  Visão Simples</label>
+                <div class="doc-row">
+                  <div class="doc-row-inline">
+                    <div>
+                      <label>Paciente</label>
+                      <input type="text" id="rx-paciente" placeholder="Nome do paciente">
+                    </div>
+                    <div style="max-width:140px;">
+                      <label>Data</label>
+                      <input type="date" id="rx-data">
                     </div>
                   </div>
-                  <div class="rx-bottom-col">
-                    <span class="rx-box-label">Tratamentos:</span>
-                    <div class="rx-checks">
-                      <label><input type="checkbox" id="rx-trat-antireflexo">  Anti-reflexo</label>
-                      <label><input type="checkbox" id="rx-trat-fotossensivel">Fotossensível</label>
+                </div>
+                <div class="doc-row">
+                  <div class="doc-row-inline">
+                    <div>
+                      <label>Data de Nascimento</label>
+                      <input type="date" id="rx-nascimento">
+                    </div>
+                    <div>
+                      <label>CPF</label>
+                      <input type="text" id="rx-cpf" placeholder="000.000.000-00">
                     </div>
                   </div>
                 </div>
 
-                <!-- ══ OBSERVAÇÕES ══ -->
-                <div class="rx-obs-row">
-                  <label>Observações:</label>
+                <div class="med-doc-section-title">Olho Direito (OD)</div>
+                <div class="doc-row">
+                  <div class="doc-row-inline">
+                    <div><label>Esférico (Esfério)</label><input type="text" id="rx-od-esf" placeholder="Ex: -2,50"></div>
+                    <div><label>Cilíndrico (Cil)</label><input type="text" id="rx-od-cil" placeholder="Ex: -0,75"></div>
+                    <div><label>Eixo</label><input type="text" id="rx-od-eixo" placeholder="Ex: 90°"></div>
+                    <div><label>DNP (mm)</label><input type="text" id="rx-od-dnp" placeholder="Ex: 32"></div>
+                  </div>
+                </div>
+                <div class="doc-row">
+                  <div class="doc-row-inline">
+                    <div><label>Adição (ADD)</label><input type="text" id="rx-od-add" placeholder="Ex: +2,00"></div>
+                    <div><label>AV c/ Rx</label><input type="text" id="rx-od-av" placeholder="Ex: 20/20"></div>
+                    <div><label>Prisma</label><input type="text" id="rx-od-prisma" placeholder="—"></div>
+                    <div><label>Base</label><input type="text" id="rx-od-base" placeholder="—"></div>
+                  </div>
+                </div>
+
+                <div class="med-doc-section-title">Olho Esquerdo (OE)</div>
+                <div class="doc-row">
+                  <div class="doc-row-inline">
+                    <div><label>Esférico (Esfério)</label><input type="text" id="rx-oe-esf" placeholder="Ex: -1,75"></div>
+                    <div><label>Cilíndrico (Cil)</label><input type="text" id="rx-oe-cil" placeholder="Ex: -0,50"></div>
+                    <div><label>Eixo</label><input type="text" id="rx-oe-eixo" placeholder="Ex: 85°"></div>
+                    <div><label>DNP (mm)</label><input type="text" id="rx-oe-dnp" placeholder="Ex: 32"></div>
+                  </div>
+                </div>
+                <div class="doc-row">
+                  <div class="doc-row-inline">
+                    <div><label>Adição (ADD)</label><input type="text" id="rx-oe-add" placeholder="Ex: +2,00"></div>
+                    <div><label>AV c/ Rx</label><input type="text" id="rx-oe-av" placeholder="Ex: 20/25"></div>
+                    <div><label>Prisma</label><input type="text" id="rx-oe-prisma" placeholder="—"></div>
+                    <div><label>Base</label><input type="text" id="rx-oe-base" placeholder="—"></div>
+                  </div>
+                </div>
+
+                <div class="med-doc-section-title">Indicação / Uso</div>
+                <div class="doc-row">
+                  <div class="doc-row-inline">
+                    <div>
+                      <label>Tipo de lente indicada</label>
+                      <select id="rx-tipo">
+                        <option value="">Selecione...</option>
+                        <option>Monofocal</option>
+                        <option>Bifocal</option>
+                        <option>Progressiva</option>
+                        <option>Lente de contato</option>
+                        <option>Lente para perto</option>
+                        <option>Lente para longe</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label>Validade da receita</label>
+                      <select id="rx-validade">
+                        <option>6 meses</option>
+                        <option>1 ano</option>
+                        <option>2 anos</option>
+                        <option>Indeterminado</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="doc-row">
+                  <label>Observações</label>
                   <textarea id="rx-obs" placeholder="Observações adicionais, recomendações..."></textarea>
                 </div>
 
-                <!-- ══ AVISOS DO RODAPÉ ══ -->
-                <div class="rx-avisos">
-                  *Retornar para próxima consulta após 1 (um) ano.<br>
-                  *Nos próximos 30 (trinta) dias de uso das lentes é normal sentir tonturas, dores de cabeça, desníveis e etc. As lentes bifocais e progressivas exigem maior período de adaptação.
-                </div>
-
-                <!-- ══ ASSINATURA ══ -->
-                <div class="rx-assinatura">
-                  <div class="rx-local-data">
-                    <input type="text" id="rx-localdata" placeholder="Local">
-                    <span>local &nbsp;&nbsp; ____ / ____ / ______</span>
-                  </div>
-                  <div class="rx-stamp-col">
-                    <div class="rx-stamp-line"></div>
-                    <div class="rx-stamp-name">Dra. Andrea Maria</div>
-                    <div class="rx-stamp-crm">CROOSP 431389 · Optometrista e Contactóloga</div>
+                <div class="med-stamp">
+                  <div class="med-stamp-box">
+                    <div class="stamp-title">Carimbo e Assinatura do Médico</div>
+                    <div class="stamp-sig"></div>
+                    <!-- ═══════════════════════════════════════════════════════════════
+                         ALTERAR ABAIXO: nome do médico e CRM
+                         Substituir "NOME_DO_MÉDICO" e "CRM/UF 000000"
+                    ═══════════════════════════════════════════════════════════════ -->
+                    <div class="stamp-doctor">Dra Andrea Maria</div>
+                    <div class="stamp-crm">CROOSP 431389 · Optometrista e Contatologa</div>
                   </div>
                 </div>
-
-                <!-- ══ CAMPOS OCULTOS PARA COMPATIBILIDADE ══
-                     Mantém IDs usados pelo medCarregarDados/medSalvarDoc -->
-                <input type="hidden" id="rx-od-prisma">
-                <input type="hidden" id="rx-od-base">
-                <input type="hidden" id="rx-oe-prisma">
-                <input type="hidden" id="rx-oe-base">
-                <select id="rx-tipo"     style="display:none"><option>Progressivas</option><option>Bifocal Ultex</option><option>Bifocal Kriptok</option><option>Visão Simples</option></select>
-                <select id="rx-validade" style="display:none"><option>1 ano</option><option>6 meses</option><option>2 anos</option></select>
 
                 <div class="med-doc-footer">
                   <button class="btn-save-doc" onclick="medSalvarDoc('receita')">
@@ -5540,37 +5431,6 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       </div>`).join('');
   }
 
-  function medLimparCampos() {
-    const textIds = [
-      'rx-paciente','rx-data','rx-nascimento','rx-cpf','rx-idade','rx-localdata',
-      'rx-od-esf','rx-od-cil','rx-od-eixo','rx-od-dnp','rx-od-add','rx-od-av','rx-od-prisma','rx-od-base',
-      'rx-oe-esf','rx-oe-cil','rx-oe-eixo','rx-oe-dnp','rx-oe-add','rx-oe-av','rx-oe-prisma','rx-oe-base',
-      'rx-co','rx-pl','rx-obs',
-      'pron-nome','pron-nasc','pron-cpf','pron-rg','pron-convenio','pron-tel','pron-email',
-      'pron-dataconsulta','pron-hora','pron-queixa','pron-hda','pron-antecedentes',
-      'pron-familia','pron-medicamentos','pron-av-od','pron-av-oe','pron-pio','pron-bio',
-      'pron-outros','pron-diagnostico','pron-conduta','pron-retorno',
-      'cid-paciente','cid-data','cid-obs',
-      'at-paciente','at-cpf','at-dias','at-inicio','at-fim','at-motivo','at-obs','at-localdata',
-    ];
-    textIds.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    ['rx-tipo','rx-validade','pron-tipo','at-tipo'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.selectedIndex = 0;
-    });
-    ['rx-lente-bifocal-ultex','rx-lente-progressiva','rx-lente-bifocal-kriptok',
-     'rx-lente-visao-simples','rx-trat-antireflexo','rx-trat-fotossensivel'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.checked = false;
-    });
-    cidsSelecionados = [];
-    cidRenderSelecionados();
-    ['receita','prontuario','atestado'].forEach(tipo => {
-      const m = document.getElementById('modelo-' + tipo);
-      const b = document.getElementById('toggle-' + tipo);
-      if (m) m.classList.remove('open');
-      if (b) { b.classList.remove('active'); b.textContent = 'Usar modelo digital'; }
-    });
-  }
-
   function medSelecionarPaciente(id) {
     const ag = agendamentos.find(a => a.id === id);
     if (!ag) return;
@@ -5583,27 +5443,40 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     content.style.flexDirection = 'column';
     content.style.flex = '1';
 
+    // avatar
     const iniciais = ag.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
     document.getElementById('medPatientAvatar').textContent = iniciais;
     document.getElementById('medPatientName').textContent = ag.nome;
     document.getElementById('medPatientMeta').textContent = `${ag.exame || 'Consulta'} · ${formatarData(ag.data)} às ${ag.horario} · ${ag.tel}`;
 
-    // Limpar campos do paciente anterior
-    medLimparCampos();
-
-    // Sempre buscar dados frescos do Firebase
-    db.ref('agenda_l2/dados').get().then(snap => {
-      if (snap.exists()) {
-        const obj = snap.val();
-        medDados = obj.medDados || medDados;
-        if (obj.agendamentos) agendamentos = obj.agendamentos;
+    // preencher nome nos documentos
+    const nomesPreencher = ['rx-paciente','cid-paciente','pron-nome','pron-tel','at-paciente'];
+    nomesPreencher.forEach(fid => {
+      const el = document.getElementById(fid);
+      if (el) {
+        if (fid === 'pron-tel') el.value = ag.tel || '';
+        else el.value = ag.nome;
       }
-      medCarregarDados(id);
-      medRenderGalerias();
-    }).catch(() => {
-      medCarregarDados(id);
-      medRenderGalerias();
     });
+
+    // carregar dados salvos — se medDados ainda vazio (Firebase ainda carregando),
+    // buscar direto do servidor para garantir no celular/outra máquina
+    if (!medDados[id]) {
+      db.ref('agenda_l2/dados').get().then(snap => {
+        if (snap.exists()) {
+          const obj = snap.val();
+          medDados = obj.medDados || medDados;
+        }
+        medCarregarDados(id);
+        medRenderGalerias();
+      }).catch(() => {
+        medCarregarDados(id);
+        medRenderGalerias();
+      });
+    } else {
+      medCarregarDados(id);
+      medRenderGalerias();
+    }
   }
 
   function medCarregarDados(agId) {
@@ -5631,28 +5504,18 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     // ── 2. Sobrescrever com fields salvos (têm prioridade) ──
     if (dados.receita?.fields) {
       const f = dados.receita.fields;
-      set('rx-paciente',  f.paciente);  set('rx-data',       f.data);
-      set('rx-nascimento',f.nasc);      set('rx-cpf',        f.cpf);
-      set('rx-idade',     f.idade);     set('rx-localdata',  f.localdata);
-      set('rx-od-esf',    f.od_esf);    set('rx-od-cil',     f.od_cil);
-      set('rx-od-eixo',   f.od_eixo);   set('rx-od-dnp',     f.od_dnp);
-      set('rx-od-add',    f.od_add);    set('rx-od-av',      f.od_av);
-      set('rx-od-prisma', f.od_prisma); set('rx-od-base',    f.od_base);
-      set('rx-oe-esf',    f.oe_esf);    set('rx-oe-cil',     f.oe_cil);
-      set('rx-oe-eixo',   f.oe_eixo);   set('rx-oe-dnp',     f.oe_dnp);
-      set('rx-oe-add',    f.oe_add);    set('rx-oe-av',      f.oe_av);
-      set('rx-oe-prisma', f.oe_prisma); set('rx-oe-base',    f.oe_base);
-      set('rx-co',        f.co);        set('rx-pl',         f.pl);
-      set('rx-tipo',      f.tipo);      set('rx-validade',   f.validade);
+      set('rx-paciente',  f.paciente); set('rx-data',      f.data);
+      set('rx-nascimento',f.nasc);     set('rx-cpf',        f.cpf);
+      set('rx-od-esf',    f.od_esf);   set('rx-od-cil',     f.od_cil);
+      set('rx-od-eixo',   f.od_eixo);  set('rx-od-dnp',     f.od_dnp);
+      set('rx-od-add',    f.od_add);   set('rx-od-av',      f.od_av);
+      set('rx-od-prisma', f.od_prisma);set('rx-od-base',    f.od_base);
+      set('rx-oe-esf',    f.oe_esf);   set('rx-oe-cil',     f.oe_cil);
+      set('rx-oe-eixo',   f.oe_eixo);  set('rx-oe-dnp',     f.oe_dnp);
+      set('rx-oe-add',    f.oe_add);   set('rx-oe-av',      f.oe_av);
+      set('rx-oe-prisma', f.oe_prisma);set('rx-oe-base',    f.oe_base);
+      set('rx-tipo',      f.tipo);     set('rx-validade',   f.validade);
       set('rx-obs',       f.obs);
-      // checkboxes de lentes
-      ['bifocal-ultex','progressiva','bifocal-kriptok','visao-simples'].forEach(k => {
-        const el = document.getElementById('rx-lente-' + k); if (el) el.checked = !!f['lente_' + k.replace(/-/g,'_')];
-      });
-      // checkboxes de tratamento
-      ['antireflexo','fotossensivel'].forEach(k => {
-        const el = document.getElementById('rx-trat-' + k); if (el) el.checked = !!f['trat_' + k];
-      });
       // abrir modelo
       const m = document.getElementById('modelo-receita');
       const b = document.getElementById('toggle-receita');
@@ -5863,42 +5726,31 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     // ── capturar campos de cada tipo ──────────────────────
     if (tipo === 'receita') {
       if (!medDados[agId].receita) medDados[agId].receita = { imgs: [] };
-      const gc = id => { const el = document.getElementById(id); return el ? el.checked : false; };
       medDados[agId].receita.doc = true;
       medDados[agId].receita.fields = {
-        paciente:  document.getElementById('rx-paciente')?.value || '',
-        data:      document.getElementById('rx-data')?.value || '',
-        nasc:      document.getElementById('rx-nascimento')?.value || '',
-        cpf:       document.getElementById('rx-cpf')?.value || '',
-        idade:     document.getElementById('rx-idade')?.value || '',
-        localdata: document.getElementById('rx-localdata')?.value || '',
-        od_esf:    document.getElementById('rx-od-esf')?.value || '',
-        od_cil:    document.getElementById('rx-od-cil')?.value || '',
-        od_eixo:   document.getElementById('rx-od-eixo')?.value || '',
-        od_dnp:    document.getElementById('rx-od-dnp')?.value || '',
-        od_add:    document.getElementById('rx-od-add')?.value || '',
-        od_av:     document.getElementById('rx-od-av')?.value || '',
-        od_prisma: document.getElementById('rx-od-prisma')?.value || '',
-        od_base:   document.getElementById('rx-od-base')?.value || '',
-        oe_esf:    document.getElementById('rx-oe-esf')?.value || '',
-        oe_cil:    document.getElementById('rx-oe-cil')?.value || '',
-        oe_eixo:   document.getElementById('rx-oe-eixo')?.value || '',
-        oe_dnp:    document.getElementById('rx-oe-dnp')?.value || '',
-        oe_add:    document.getElementById('rx-oe-add')?.value || '',
-        oe_av:     document.getElementById('rx-oe-av')?.value || '',
-        oe_prisma: document.getElementById('rx-oe-prisma')?.value || '',
-        oe_base:   document.getElementById('rx-oe-base')?.value || '',
-        co:        document.getElementById('rx-co')?.value || '',
-        pl:        document.getElementById('rx-pl')?.value || '',
-        tipo:      document.getElementById('rx-tipo')?.value || '',
-        validade:  document.getElementById('rx-validade')?.value || '',
-        obs:       document.getElementById('rx-obs')?.value || '',
-        lente_bifocal_ultex:   gc('rx-lente-bifocal-ultex'),
-        lente_progressiva:     gc('rx-lente-progressiva'),
-        lente_bifocal_kriptok: gc('rx-lente-bifocal-kriptok'),
-        lente_visao_simples:   gc('rx-lente-visao-simples'),
-        trat_antireflexo:      gc('rx-trat-antireflexo'),
-        trat_fotossensivel:    gc('rx-trat-fotossensivel'),
+        paciente: document.getElementById('rx-paciente')?.value || '',
+        data:     document.getElementById('rx-data')?.value || '',
+        nasc:     document.getElementById('rx-nascimento')?.value || '',
+        cpf:      document.getElementById('rx-cpf')?.value || '',
+        od_esf:   document.getElementById('rx-od-esf')?.value || '',
+        od_cil:   document.getElementById('rx-od-cil')?.value || '',
+        od_eixo:  document.getElementById('rx-od-eixo')?.value || '',
+        od_dnp:   document.getElementById('rx-od-dnp')?.value || '',
+        od_add:   document.getElementById('rx-od-add')?.value || '',
+        od_av:    document.getElementById('rx-od-av')?.value || '',
+        od_prisma:document.getElementById('rx-od-prisma')?.value || '',
+        od_base:  document.getElementById('rx-od-base')?.value || '',
+        oe_esf:   document.getElementById('rx-oe-esf')?.value || '',
+        oe_cil:   document.getElementById('rx-oe-cil')?.value || '',
+        oe_eixo:  document.getElementById('rx-oe-eixo')?.value || '',
+        oe_dnp:   document.getElementById('rx-oe-dnp')?.value || '',
+        oe_add:   document.getElementById('rx-oe-add')?.value || '',
+        oe_av:    document.getElementById('rx-oe-av')?.value || '',
+        oe_prisma:document.getElementById('rx-oe-prisma')?.value || '',
+        oe_base:  document.getElementById('rx-oe-base')?.value || '',
+        tipo:     document.getElementById('rx-tipo')?.value || '',
+        validade: document.getElementById('rx-validade')?.value || '',
+        obs:      document.getElementById('rx-obs')?.value || '',
       };
 
     } else if (tipo === 'prontuario') {
@@ -6061,10 +5913,43 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     // ativar a aba correta
     document.querySelectorAll('.med-tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById('tab-' + tipo).classList.add('active');
+
+    // ── Substituir inputs/selects/textareas por spans com o valor real ──
+    const docElId = { receita:'docReceita', prontuario:'docProntuario', diagnostico:'docDiagnostico', atestado:'docAtestado' }[tipo];
+    const docEl = document.getElementById(docElId);
+    const substituicoes = [];
+
+    if (docEl) {
+      docEl.querySelectorAll('input, textarea, select').forEach(el => {
+        let valor = '';
+        if (el.tagName === 'INPUT' && el.type === 'date') {
+          // formatar data para pt-BR
+          valor = el.value ? el.value.split('-').reverse().join('/') : '';
+        } else if (el.tagName === 'INPUT' && el.type === 'checkbox') {
+          // checkboxes: não substituir, apenas manter
+          return;
+        } else {
+          valor = el.value || '';
+        }
+        const span = document.createElement('span');
+        span.className = 'print-valor';
+        span.style.cssText = 'display:inline-block;min-width:60px;border-bottom:1px solid #999;padding:1px 2px;font-size:inherit;font-family:inherit;color:#000;';
+        span.textContent = valor || (el.placeholder ? '' : '');
+        el.parentNode.insertBefore(span, el);
+        el.style.display = 'none';
+        substituicoes.push({ span, el });
+      });
+    }
+
     setTimeout(() => {
       window.print();
+      // ── Reverter substituições após impressão ──
+      substituicoes.forEach(({ span, el }) => {
+        el.style.display = '';
+        if (span.parentNode) span.parentNode.removeChild(span);
+      });
       if (eraFechado) body.classList.remove('open');
-    }, 150);
+    }, 200);
   }
 
   // ═══════════════════════════════════════════════════════
