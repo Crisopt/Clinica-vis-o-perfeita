@@ -2783,6 +2783,21 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   .med-doc input:not([type="checkbox"]), .med-doc textarea, .med-doc select { display: none !important; }
   .med-doc .print-valor { display: inline !important; border-bottom: 1px solid #999 !important; padding: 0 2px; color: #000; font-size: inherit; font-family: inherit; }
   .med-doc input[type="checkbox"] { display: inline-block !important; }
+
+  /* ── Garante que a tabela de graus (OD/OE) apareça corretamente ── */
+  .rx-tabela { display: table !important; width: 100% !important; border-collapse: collapse !important; }
+  .rx-tabela thead, .rx-tabela tbody { display: table-row-group !important; }
+  .rx-tabela tr { display: table-row !important; }
+  .rx-tabela th, .rx-tabela td { display: table-cell !important; border: 1.5px solid #1a2060 !important; padding: 3px 4px !important; }
+  .rx-tabela th { background: #1a2060 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rx-tabela td.rx-row-label,
+  .rx-tabela td.rx-adicao-label { background: #1a2060 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rx-tabela td.rx-sub-label { background: #e8ecf8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* span com valor dentro das células da tabela */
+  .rx-tabela .print-valor { display: inline !important; min-width: 40px; }
+
+  /* ── Remove o box de local/data abaixo do carimbo ── */
+  .rx-local-data { display: none !important; }
 }
 </style>
 </head>
@@ -3609,8 +3624,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
                 <input type="hidden" id="rx-od-base">
                 <input type="hidden" id="rx-oe-prisma">
                 <input type="hidden" id="rx-oe-base">
-                <select id="rx-tipo"     style="display:none"><option>Progressivas</option><option>Bifocal Ultex</option><option>Bifocal Kriptok</option><option>Visão Simples</option></select>
-                <select id="rx-validade" style="display:none"><option>1 ano</option><option>6 meses</option><option>2 anos</option></select>
+                <select id="rx-tipo"     style="display:none" data-print-hide="true"><option>Progressivas</option><option>Bifocal Ultex</option><option>Bifocal Kriptok</option><option>Visão Simples</option></select>
+                <select id="rx-validade" style="display:none" data-print-hide="true"><option>1 ano</option><option>6 meses</option><option>2 anos</option></select>
 
                 <div class="med-doc-footer">
                   <button class="btn-save-doc" onclick="medSalvarDoc('receita')">
@@ -6079,6 +6094,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
     if (docEl) {
       docEl.querySelectorAll('input:not([type="checkbox"]):not([type="hidden"]), textarea, select').forEach(el => {
+        // Pular selects marcados para não aparecer na impressão
+        if (el.dataset.printHide === 'true') return;
         let valor = '';
         if (el.tagName === 'INPUT' && el.type === 'date') {
           valor = el.value ? el.value.split('-').reverse().join('/') : '';
