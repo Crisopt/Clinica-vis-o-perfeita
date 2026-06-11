@@ -3729,6 +3729,16 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
                   .pron-line input[type=text] { flex:1; min-width:30px; }
                   .pron-check-item { display:flex; align-items:center; gap:5px; font-size:10px; margin-bottom:3px; cursor:pointer; }
                   .pron-blank-line { border-bottom:1px solid #aaa; height:16px; margin-bottom:4px; width:100%; }
+                  .pron-edit-area {
+                    width:100%; box-sizing:border-box;
+                    border:none; border-bottom:1px solid #aaa;
+                    background:transparent; font-size:10px;
+                    font-family:Arial,sans-serif; color:#000;
+                    outline:none; resize:none; padding:2px 2px;
+                    line-height:1.6; min-height:16px;
+                    overflow:hidden; display:block; margin-bottom:4px;
+                  }
+                  .pron-edit-area:focus { background:#f0f8ff; }
                   .pron-compat { display:none; }
 
                   @media print {
@@ -3842,13 +3852,9 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
                       <div class="pron-section">
                         <div class="pron-section-title">Anamnese</div>
                         <div style="font-size:10px;font-weight:700;margin-bottom:2px;">Queixa principal</div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
+                        <textarea class="pron-edit-area" id="pron-edit-queixa" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                         <div style="font-size:10px;font-weight:700;margin:5px 0 2px;">HDA</div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
+                        <textarea class="pron-edit-area" id="pron-edit-hda" rows="4" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                       </div>
 
                       <div class="pron-section">
@@ -3859,18 +3865,12 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
                         <label class="pron-check-item"><input type="checkbox" id="pron-ap-cir"> Cirurgia ocular</label>
                         <label class="pron-check-item"><input type="checkbox" id="pron-ap-trauma"> Traumatismo ocular</label>
                         <label class="pron-check-item"><input type="checkbox" id="pron-ap-alergia"> Alergia medicamentosa</label>
-                        <div class="pron-blank-line" style="margin-top:5px;"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
+                        <textarea class="pron-edit-area" id="pron-edit-antpes" rows="3" style="margin-top:5px;" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                       </div>
 
                       <div class="pron-section">
                         <div class="pron-section-title">Medicamentos em uso</div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
+                        <textarea class="pron-edit-area" id="pron-edit-med" rows="5" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                       </div>
 
                       <div class="pron-section">
@@ -3878,15 +3878,12 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
                         <label class="pron-check-item"><input type="checkbox" id="pron-af-glaucoma"> Glaucoma</label>
                         <label class="pron-check-item"><input type="checkbox" id="pron-af-cegueira"> Cegueira</label>
                         <label class="pron-check-item"><input type="checkbox" id="pron-af-outro"> Outro</label>
-                        <div class="pron-blank-line" style="margin-top:5px;"></div>
-                        <div class="pron-blank-line"></div>
+                        <textarea class="pron-edit-area" id="pron-edit-antfam" rows="2" style="margin-top:5px;" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                       </div>
 
                       <div class="pron-section">
                         <div class="pron-section-title">Hipóteses diagnósticas</div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
+                        <textarea class="pron-edit-area" id="pron-edit-hipot" rows="3" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                       </div>
                     </div>
 
@@ -3894,48 +3891,23 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
                     <div>
                       <div class="pron-section">
                         <div class="pron-section-title">Conduta</div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
+                        <textarea class="pron-edit-area" id="pron-edit-conduta" rows="8" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                       </div>
 
                       <div class="pron-section" style="margin-top:8px;">
                         <div class="pron-section-title">Observações</div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
-                        <div class="pron-blank-line"></div>
+                        <textarea class="pron-edit-area" id="pron-edit-obs" rows="15" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                       </div>
                     </div>
 
                   </div><!-- /pron-grid -->
 
-                  <!-- Assinaturas -->
-                  <div class="decl-sign-row" style="margin-top:20px;">
-                    <div class="decl-sign-col" style="flex:2;">
-                      <div class="decl-sign-line"></div>
-                      <div class="decl-sign-label" id="pron-pron-nome-label">Assinatura do Paciente</div>
-                    </div>
-                    <div class="decl-sign-col" style="flex:2;">
-                      <div class="decl-sign-line"></div>
-                      <div class="decl-sign-label">Dra. Andrea Maria — CROOSP 431389</div>
-                      <div style="font-size:9px;color:#555;">Optometrista e Contactóloga</div>
+                  <!-- Carimbo da doutora -->
+                  <div style="margin-top:20px; text-align:center;">
+                    <div style="display:inline-block; min-width:220px; text-align:center;">
+                      <div style="border-top:1.5px solid #000; margin-bottom:3px;"></div>
+                      <div style="font-size:10px; font-weight:700;">Dra. Andrea Maria — CROOSP 431389</div>
+                      <div style="font-size:9px; color:#555;">Optometrista e Contactóloga</div>
                     </div>
                   </div>
                 </div>
@@ -5904,6 +5876,23 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       set('pron-bio',         f.bio);   set('pron-outros',      f.outros);
       set('pron-diagnostico', f.diagnostico); set('pron-conduta',f.conduta);
       set('pron-retorno',     f.retorno);
+      // Carregar novos campos editáveis
+      const setTA = (id, val) => { const el = document.getElementById(id); if(el && val){ el.value = val; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; } };
+      setTA('pron-edit-queixa', f.edit_queixa);
+      setTA('pron-edit-hda',    f.edit_hda);
+      setTA('pron-edit-antpes', f.edit_antpes);
+      setTA('pron-edit-med',    f.edit_med);
+      setTA('pron-edit-antfam', f.edit_antfam);
+      setTA('pron-edit-hipot',  f.edit_hipot);
+      setTA('pron-edit-conduta',f.edit_conduta);
+      setTA('pron-edit-obs',    f.edit_obs);
+      // Carregar checkboxes
+      const setChk = (id, val) => { const el = document.getElementById(id); if(el) el.checked = !!val; };
+      setChk('pron-ap-hta', f.ap_hta); setChk('pron-ap-dm', f.ap_dm);
+      setChk('pron-ap-asma', f.ap_asma); setChk('pron-ap-cir', f.ap_cir);
+      setChk('pron-ap-trauma', f.ap_trauma); setChk('pron-ap-alergia', f.ap_alergia);
+      setChk('pron-af-glaucoma', f.af_glaucoma); setChk('pron-af-cegueira', f.af_cegueira);
+      setChk('pron-af-outro', f.af_outro);
       // abrir modelo
       const m = document.getElementById('modelo-prontuario');
       const b = document.getElementById('toggle-prontuario');
@@ -6162,6 +6151,26 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         diagnostico: document.getElementById('pron-diagnostico')?.value || '',
         conduta:     document.getElementById('pron-conduta')?.value || '',
         retorno:     document.getElementById('pron-retorno')?.value || '',
+        // Novos campos editáveis do prontuário
+        edit_queixa: document.getElementById('pron-edit-queixa')?.value || '',
+        edit_hda:    document.getElementById('pron-edit-hda')?.value || '',
+        edit_antpes: document.getElementById('pron-edit-antpes')?.value || '',
+        edit_med:    document.getElementById('pron-edit-med')?.value || '',
+        edit_antfam: document.getElementById('pron-edit-antfam')?.value || '',
+        edit_hipot:  document.getElementById('pron-edit-hipot')?.value || '',
+        edit_conduta:document.getElementById('pron-edit-conduta')?.value || '',
+        edit_obs:    document.getElementById('pron-edit-obs')?.value || '',
+        // Checkboxes antecedentes pessoais
+        ap_hta:    document.getElementById('pron-ap-hta')?.checked || false,
+        ap_dm:     document.getElementById('pron-ap-dm')?.checked || false,
+        ap_asma:   document.getElementById('pron-ap-asma')?.checked || false,
+        ap_cir:    document.getElementById('pron-ap-cir')?.checked || false,
+        ap_trauma: document.getElementById('pron-ap-trauma')?.checked || false,
+        ap_alergia:document.getElementById('pron-ap-alergia')?.checked || false,
+        // Checkboxes antecedentes familiares
+        af_glaucoma:document.getElementById('pron-af-glaucoma')?.checked || false,
+        af_cegueira:document.getElementById('pron-af-cegueira')?.checked || false,
+        af_outro:   document.getElementById('pron-af-outro')?.checked || false,
       };
 
     } else if (tipo === 'diagnostico') {
