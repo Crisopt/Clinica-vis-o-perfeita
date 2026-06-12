@@ -3357,6 +3357,10 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             Receita Médica
           </button>
+          <button class="med-tab" onclick="medAbrirAba('receita2',this)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            Receita Dr. Edson
+          </button>
           <button class="med-tab" onclick="medAbrirAba('prontuario',this)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
             Prontuário
@@ -3641,6 +3645,202 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
             </div>
           </div>
         </div><!-- /tab-receita -->
+
+        <!-- ─── ABA: RECEITA DR. EDSON ─── -->
+        <div class="med-tab-content" id="tab-receita2">
+
+          <!-- upload -->
+          <div class="med-upload-section">
+            <div class="med-upload-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Anexar foto / arquivo da receita física — Dr. Edson
+            </div>
+            <div class="med-upload-actions">
+              <button class="med-upload-btn camera" onclick="medAbrirCamera('receita2')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Tirar foto (câmera)
+              </button>
+              <label class="med-upload-btn gallery">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Selecionar da galeria / arquivo
+                <input type="file" accept="image/*,application/pdf" style="display:none" onchange="medAnexarArquivo('receita2',event)" multiple>
+              </label>
+            </div>
+            <div class="med-images-gallery" id="gallery-receita2"></div>
+          </div>
+
+          <!-- modelo -->
+          <div class="med-model-card">
+            <div class="med-model-header">
+              <h4>📋 Modelo digital — Receita Oftalmológica Dr. Edson</h4>
+              <div class="med-model-actions">
+                <button class="med-model-toggle" id="toggle-receita2" onclick="medToggleModelo('receita2')">Usar modelo digital</button>
+              </div>
+            </div>
+            <div class="med-model-body" id="modelo-receita2">
+              <div class="med-doc rx-prescrição" id="docReceita2">
+
+                <!-- ══ CABEÇALHO ══ -->
+                <div class="rx-header">
+                  <div class="rx-caduceu">
+                    <svg viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg" fill="none">
+                      <ellipse cx="60" cy="10" rx="14" ry="8" stroke="#1a2060" stroke-width="3" fill="none"/>
+                      <circle cx="60" cy="10" r="4" fill="#1a2060"/>
+                      <line x1="60" y1="18" x2="60" y2="118" stroke="#1a2060" stroke-width="4"/>
+                      <path d="M60 30 C40 38, 40 52, 60 58 C40 64, 40 78, 60 84 C40 90, 40 104, 60 110" stroke="#1a2060" stroke-width="2.5" fill="none"/>
+                      <path d="M60 30 C80 38, 80 52, 60 58 C80 64, 80 78, 60 84 C80 90, 80 104, 60 110" stroke="#1a2060" stroke-width="2.5" fill="none"/>
+                      <path d="M60 28 C50 20, 28 18, 20 26 C28 22, 48 28, 60 36" stroke="#1a2060" stroke-width="2" fill="#d0d8f0"/>
+                      <path d="M60 28 C70 20, 92 18, 100 26 C92 22, 72 28, 60 36" stroke="#1a2060" stroke-width="2" fill="#d0d8f0"/>
+                    </svg>
+                  </div>
+                  <div class="rx-titulo">
+                    <h2>CLÍNICA VISÃO<br>PERFEITA</h2>
+                    <p>Dr. Edson dos Santos Neto &nbsp;·&nbsp; CRM 47.958 &nbsp;·&nbsp; Oftalmologista<br>
+                    O presente exame foi realizado por médico oftalmologista habilitado para diagnóstico, prescrição e tratamento de doenças oculares.</p>
+                  </div>
+                </div>
+
+                <hr class="rx-divider">
+
+                <!-- Para o Sr(a) -->
+                <div class="rx-para-row">
+                  <span class="rx-para-label">Para o Sr(a).:</span>
+                  <input type="text" id="rx2-paciente" placeholder="Nome do paciente">
+                  <div class="rx-idade-wrap">
+                    <label>Idade:</label>
+                    <input type="text" id="rx2-idade" placeholder="__">
+                  </div>
+                </div>
+
+                <!-- CPF / Nascimento / Data -->
+                <div class="rx-cpf-row">
+                  <div class="rx-field">
+                    <label>CPF:</label>
+                    <input type="text" id="rx2-cpf" placeholder="000.000.000-00" style="width:140px;">
+                  </div>
+                  <div class="rx-field">
+                    <label>Nascimento:</label>
+                    <input type="date" id="rx2-nascimento" style="width:140px;">
+                  </div>
+                  <div class="rx-field" style="margin-left:auto;">
+                    <label>Data:</label>
+                    <input type="date" id="rx2-data" style="width:140px;">
+                  </div>
+                </div>
+
+                <!-- Tabela graus -->
+                <table class="rx-tabela">
+                  <thead>
+                    <tr>
+                      <th class="rx-th-empty"></th>
+                      <th>ESFÉRICO</th>
+                      <th>CILÍNDRICO</th>
+                      <th>EIXO</th>
+                      <th>AV</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="rx-row-label">OD</td>
+                      <td><input type="text" id="rx2-od-esf"  placeholder="ex: -2,00"></td>
+                      <td><input type="text" id="rx2-od-cil"  placeholder="ex: -0,75"></td>
+                      <td><input type="text" id="rx2-od-eixo" placeholder="ex: 90°"></td>
+                      <td><input type="text" id="rx2-od-av"   placeholder="20/20"></td>
+                    </tr>
+                    <tr>
+                      <td class="rx-row-label">OE</td>
+                      <td><input type="text" id="rx2-oe-esf"  placeholder="ex: -1,75"></td>
+                      <td><input type="text" id="rx2-oe-cil"  placeholder="ex: -0,50"></td>
+                      <td><input type="text" id="rx2-oe-eixo" placeholder="ex: 85°"></td>
+                      <td><input type="text" id="rx2-oe-av"   placeholder="20/20"></td>
+                    </tr>
+                    <tr>
+                      <td class="rx-adicao-label" rowspan="2">ADIÇÃO</td>
+                      <td><input type="text" id="rx2-od-add"  placeholder="+2,00"></td>
+                      <td class="rx-sub-label" rowspan="2">DNP</td>
+                      <td class="rx-sub-label">CO</td>
+                      <td><input type="text" id="rx2-co" placeholder=""></td>
+                    </tr>
+                    <tr>
+                      <td><input type="text" id="rx2-oe-add"  placeholder="+2,00"></td>
+                      <td class="rx-sub-label">PL</td>
+                      <td><input type="text" id="rx2-pl" placeholder=""></td>
+                    </tr>
+                    <tr>
+                      <td class="rx-row-label" style="font-size:9px;">DNP</td>
+                      <td><input type="text" id="rx2-od-dnp" placeholder="OD mm"></td>
+                      <td><input type="text" id="rx2-oe-dnp" placeholder="OE mm"></td>
+                      <td colspan="2" style="font-size:10px;color:#888;text-align:center;">Distância naso-pupilar</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- Tipos de lentes / Tratamentos -->
+                <div class="rx-bottom">
+                  <div class="rx-bottom-col">
+                    <span class="rx-box-label">Tipos de Lentes:</span>
+                    <div class="rx-checks">
+                      <label><input type="checkbox" id="rx2-lente-bifocal-ultex">  Bifocal Ultex</label>
+                      <label><input type="checkbox" id="rx2-lente-progressiva">    Progressivas</label>
+                      <label><input type="checkbox" id="rx2-lente-bifocal-kriptok">Bifocal Kriptok</label>
+                      <label><input type="checkbox" id="rx2-lente-visao-simples">  Visão Simples</label>
+                    </div>
+                  </div>
+                  <div class="rx-bottom-col">
+                    <span class="rx-box-label">Tratamentos:</span>
+                    <div class="rx-checks">
+                      <label><input type="checkbox" id="rx2-trat-antireflexo">  Anti-reflexo</label>
+                      <label><input type="checkbox" id="rx2-trat-fotossensivel">Fotossensível</label>
+                      <label><input type="checkbox" id="rx2-trat-filtroazul">   Filtro Azul</label>
+                      <label><input type="checkbox" id="rx2-trat-miopia">       Controle de Miopia</label>
+                      <label><input type="checkbox" id="rx2-trat-antirrisco">   Antirrisco</label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Observações -->
+                <div class="rx-obs-row">
+                  <label>Observações:</label>
+                  <textarea id="rx2-obs" placeholder="Observações adicionais, recomendações..."></textarea>
+                </div>
+
+                <!-- Avisos -->
+                <div class="rx-avisos">
+                  *Retornar para próxima consulta após 1 (um) ano.<br>
+                  *Nos próximos 30 (trinta) dias de uso das lentes é normal sentir tonturas, dores de cabeça, desníveis e etc. As lentes bifocais e progressivas exigem maior período de adaptação.
+                </div>
+
+                <!-- Assinatura -->
+                <div class="rx-assinatura">
+                  <div class="rx-stamp-col">
+                    <div class="rx-stamp-line"></div>
+                    <div class="rx-stamp-name">Dr. Edson dos Santos Neto</div>
+                    <div class="rx-stamp-crm">CRM 47.958 · Oftalmologista</div>
+                  </div>
+                </div>
+
+                <!-- campos ocultos compat -->
+                <input type="hidden" id="rx2-od-prisma">
+                <input type="hidden" id="rx2-od-base">
+                <input type="hidden" id="rx2-oe-prisma">
+                <input type="hidden" id="rx2-oe-base">
+                <select id="rx2-tipo"    style="display:none" data-print-hide="true"><option>Progressivas</option><option>Bifocal Ultex</option><option>Bifocal Kriptok</option><option>Visão Simples</option></select>
+                <select id="rx2-validade" style="display:none" data-print-hide="true"><option>1 ano</option><option>6 meses</option><option>2 anos</option></select>
+
+                <div class="med-doc-footer">
+                  <button class="btn-save-doc" onclick="medSalvarDoc('receita2')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+                    Salvar
+                  </button>
+                  <button class="btn-print" onclick="medImprimir('receita2')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Imprimir
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div><!-- /tab-receita2 -->
 
         <!-- ─── ABA: PRONTUÁRIO ─── -->
         <div class="med-tab-content" id="tab-prontuario">
@@ -5634,7 +5834,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   // │    const MEDICO_NOME  = 'Dr. João da Silva';                │
   // │    const MEDICO_CRM   = 'CRM/SP 123456 · Oftalmologista';   │
   // └─────────────────────────────────────────────────────────────┘
-  const SENHA_MEDICO = 'teste123';   // ← ALTERAR
+  const SENHA_MEDICO       = 'teste123';   // ← ALTERAR (Dra. Andrea)
+  const SENHA_MEDICO_EDSON = 'edson123';   // ← ALTERAR (Dr. Edson)
   const MEDICO_NOME  = 'DRA Andrea Maria';       // ← ALTERAR
   const MEDICO_CRM   = 'CROOSP 43.1389 · OPTOMETRISTA E CONTATOLOGA'; // ← ALTERAR
 
@@ -5661,33 +5862,63 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function medConfirmarLogin() {
     const senha = document.getElementById('medSenhaInput').value;
     const errEl = document.getElementById('medLoginError');
-    if (senha !== SENHA_MEDICO) {
+    if (senha === SENHA_MEDICO) {
+      // Dra. Andrea — acesso completo (sem aba Dr. Edson)
+      errEl.classList.remove('show');
+      document.getElementById('medLoginScreen').classList.remove('open');
+      medAbrirPagina();
+    } else if (senha === SENHA_MEDICO_EDSON) {
+      // Dr. Edson — acesso restrito à sua aba
+      errEl.classList.remove('show');
+      document.getElementById('medLoginScreen').classList.remove('open');
+      medAbrirPagina('receita2');
+    } else {
       document.getElementById('medLoginErrorMsg').textContent = 'Senha incorreta. Acesso negado.';
       errEl.classList.add('show');
       document.getElementById('medSenhaInput').value = '';
       document.getElementById('medSenhaInput').focus();
-      return;
     }
-    errEl.classList.remove('show');
-    document.getElementById('medLoginScreen').classList.remove('open');
-    medAbrirPagina();
   }
 
-  function medAbrirPagina() {
+  // modoEdson: true quando logou com senha do Dr. Edson
+  let medModoEdson = false;
+
+  function medAbrirPagina(abaInicial) {
     medAtualizarCarimbos();
     medRenderLista();
     document.getElementById('medPage').classList.add('open');
-    // preencher datas de hoje nos documentos
     const hoje = new Date().toISOString().split('T')[0];
     ['rx-data','cid-data','pron-dataconsulta','at-inicio'].forEach(id => {
       const el = document.getElementById(id);
       if (el && !el.value) el.value = hoje;
     });
+
+    // Modo Dr. Edson: só aba receita2 / Modo Dra. Andrea: todas exceto receita2
+    medModoEdson = (abaInicial === 'receita2');
+    document.querySelectorAll('.med-tab').forEach(btn => {
+      const abaId = btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+      if (medModoEdson) {
+        btn.style.display = (abaId === 'receita2') ? '' : 'none';
+      } else {
+        // Dra. Andrea: ocultar aba do Dr. Edson
+        btn.style.display = (abaId === 'receita2') ? 'none' : '';
+      }
+    });
+
+    // Abrir a aba correta
+    if (abaInicial) {
+      const btnAlvo = [...document.querySelectorAll('.med-tab')]
+        .find(b => b.getAttribute('onclick')?.includes("'" + abaInicial + "'"));
+      if (btnAlvo) medAbrirAba(abaInicial, btnAlvo);
+    }
   }
 
   function medFecharPagina() {
     document.getElementById('medPage').classList.remove('open');
     medPacienteSelecionado = null;
+    medModoEdson = false;
+    // restaurar visibilidade de todas as abas
+    document.querySelectorAll('.med-tab').forEach(btn => btn.style.display = '');
   }
 
   // ── LISTA DE PACIENTES ──────────────────────────────────
@@ -5790,6 +6021,9 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     // ── 1. Preencher campos básicos sempre do agendamento ──
     if (ag) {
       set('rx-paciente',       ag.nome);
+      set('rx2-paciente',      ag.nome);
+      set('rx2-data',          ag.data || hoje);
+      set('rx2-cpf',           ag.cpf || '');
       set('rx-data',           ag.data || hoje);
       set('cid-paciente',      ag.nome);
       set('cid-data',          ag.data || hoje);
@@ -5816,6 +6050,13 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       set('rx-paciente',  f.paciente);  set('rx-data',       f.data);
       set('rx-nascimento',f.nasc);      set('rx-cpf',        f.cpf);
       set('rx-idade',     f.idade);     set('rx-localdata',  f.localdata);
+      // Espelha dados básicos na receita2 (Dr. Edson) se ainda não preenchida
+      if (!dados.receita2?.fields) {
+        set('rx2-paciente',   f.paciente);
+        set('rx2-cpf',        f.cpf);
+        set('rx2-nascimento', f.nasc);
+        set('rx2-data',       f.data);
+      }
       // Espelha CPF e data na declaração de ciência
       set('pron-decl-cpf', f.cpf);
       if (f.data) {
@@ -5908,6 +6149,31 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       set('cid-paciente', f.paciente); set('cid-data', f.data); set('cid-obs', f.obs);
     } else if (dados.diagnostico?.obs) {
       set('cid-obs', dados.diagnostico.obs);
+    }
+
+    if (dados.receita2?.fields) {
+      const f2 = dados.receita2.fields;
+      const set2 = (id,v) => { const e=document.getElementById(id); if(e&&v!==undefined&&v!==null&&v!=='') e.value=v; };
+      set2('rx2-paciente', f2.paciente); set2('rx2-data', f2.data);
+      set2('rx2-nascimento', f2.nasc);   set2('rx2-cpf', f2.cpf);
+      set2('rx2-idade', f2.idade);
+      set2('rx2-od-esf', f2.od_esf);    set2('rx2-od-cil', f2.od_cil);
+      set2('rx2-od-eixo', f2.od_eixo);  set2('rx2-od-av', f2.od_av);
+      set2('rx2-od-dnp', f2.od_dnp);    set2('rx2-od-add', f2.od_add);
+      set2('rx2-oe-esf', f2.oe_esf);    set2('rx2-oe-cil', f2.oe_cil);
+      set2('rx2-oe-eixo', f2.oe_eixo);  set2('rx2-oe-av', f2.oe_av);
+      set2('rx2-oe-dnp', f2.oe_dnp);    set2('rx2-oe-add', f2.oe_add);
+      set2('rx2-co', f2.co);             set2('rx2-pl', f2.pl);
+      set2('rx2-obs', f2.obs);
+      ['bifocal-ultex','progressiva','bifocal-kriptok','visao-simples'].forEach(k => {
+        const el = document.getElementById('rx2-lente-' + k); if (el) el.checked = !!f2['lente_' + k.replace(/-/g,'_')];
+      });
+      ['antireflexo','fotossensivel','filtroazul','miopia','antirrisco'].forEach(k => {
+        const el = document.getElementById('rx2-trat-' + k); if (el) el.checked = !!f2['trat_' + k];
+      });
+      const m2 = document.getElementById('modelo-receita2');
+      const b2 = document.getElementById('toggle-receita2');
+      if (m2 && !m2.classList.contains('open')) { m2.classList.add('open'); if(b2){b2.classList.add('active');b2.textContent='Ocultar modelo';} }
     }
 
     if (dados.atestado?.fields) {
@@ -6173,6 +6439,42 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         af_outro:   document.getElementById('pron-af-outro')?.checked || false,
       };
 
+    } else if (tipo === 'receita2') {
+      if (!medDados[agId].receita2) medDados[agId].receita2 = { imgs: [] };
+      const gc2 = id => { const el = document.getElementById(id); return el ? el.checked : false; };
+      medDados[agId].receita2.doc = true;
+      medDados[agId].receita2.fields = {
+        paciente:  document.getElementById('rx2-paciente')?.value || '',
+        data:      document.getElementById('rx2-data')?.value || '',
+        nasc:      document.getElementById('rx2-nascimento')?.value || '',
+        cpf:       document.getElementById('rx2-cpf')?.value || '',
+        idade:     document.getElementById('rx2-idade')?.value || '',
+        od_esf:    document.getElementById('rx2-od-esf')?.value || '',
+        od_cil:    document.getElementById('rx2-od-cil')?.value || '',
+        od_eixo:   document.getElementById('rx2-od-eixo')?.value || '',
+        od_dnp:    document.getElementById('rx2-od-dnp')?.value || '',
+        od_add:    document.getElementById('rx2-od-add')?.value || '',
+        od_av:     document.getElementById('rx2-od-av')?.value || '',
+        oe_esf:    document.getElementById('rx2-oe-esf')?.value || '',
+        oe_cil:    document.getElementById('rx2-oe-cil')?.value || '',
+        oe_eixo:   document.getElementById('rx2-oe-eixo')?.value || '',
+        oe_dnp:    document.getElementById('rx2-oe-dnp')?.value || '',
+        oe_add:    document.getElementById('rx2-oe-add')?.value || '',
+        oe_av:     document.getElementById('rx2-oe-av')?.value || '',
+        co:        document.getElementById('rx2-co')?.value || '',
+        pl:        document.getElementById('rx2-pl')?.value || '',
+        obs:       document.getElementById('rx2-obs')?.value || '',
+        lente_bifocal_ultex:   gc2('rx2-lente-bifocal-ultex'),
+        lente_progressiva:     gc2('rx2-lente-progressiva'),
+        lente_bifocal_kriptok: gc2('rx2-lente-bifocal-kriptok'),
+        lente_visao_simples:   gc2('rx2-lente-visao-simples'),
+        trat_antireflexo:      gc2('rx2-trat-antireflexo'),
+        trat_fotossensivel:    gc2('rx2-trat-fotossensivel'),
+        trat_filtroazul:       gc2('rx2-trat-filtroazul'),
+        trat_miopia:           gc2('rx2-trat-miopia'),
+        trat_antirrisco:       gc2('rx2-trat-antirrisco'),
+      };
+
     } else if (tipo === 'diagnostico') {
       if (!medDados[agId].diagnostico) medDados[agId].diagnostico = { imgs: [], cids: [] };
       medDados[agId].diagnostico.doc = true;
@@ -6238,7 +6540,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     }
 
     // ── gerar PDF para preview local (NÃO vai ao Firebase — apenas exibição) ──
-    const docElId = { receita:'docReceita', prontuario:'docProntuario', diagnostico:'docDiagnostico', atestado:'docAtestado' }[tipo];
+    const docElId = { receita:'docReceita', receita2:'docReceita2', prontuario:'docProntuario', diagnostico:'docDiagnostico', atestado:'docAtestado' }[tipo];
     const docEl = document.getElementById(docElId);
     if (docEl && window.html2canvas && window.jspdf) {
       try {
@@ -6307,7 +6609,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
     // ── Substituir inputs/selects/textareas por spans com o valor real ──
     // (Browsers não renderizam o value dos inputs na impressão)
-    const docElId = { receita:'docReceita', prontuario:'docProntuario', diagnostico:'docDiagnostico', atestado:'docAtestado' }[tipo];
+    const docElId = { receita:'docReceita', receita2:'docReceita2', prontuario:'docProntuario', diagnostico:'docDiagnostico', atestado:'docAtestado' }[tipo];
     const docEl = document.getElementById(docElId);
     const substituicoes = [];
 
@@ -6687,7 +6989,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const dados = medDados[agId];
     if (!dados) return false;
     // considera qualquer tipo de documento salvo
-    return ['receita','prontuario','diagnostico','atestado'].some(t =>
+    return ['receita','receita2','prontuario','diagnostico','atestado'].some(t =>
       dados[t] && ((dados[t].imgs && dados[t].imgs.length > 0) || dados[t].doc)
     );
   }
@@ -6741,19 +7043,41 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const iniciais = ag.nome.split(' ').slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();
     const dados = medDados[ag.id];
 
-    // ── Receita: dados digitais ───────────────────────────
+    // ── Receita Dra. Andrea: dados digitais ─────────────────────
     var rxDigitalHtml = '';
     if (dados && dados.receita && dados.receita.doc && dados.receita.fields) {
       const f = dados.receita.fields;
       rxDigitalHtml = '<div class="vpc-rx-section">' +
-        '<div class="vpc-rx-label">Receita Oftalmológica</div>' +
+        '<div class="vpc-rx-label">Receita Oftalmológica — Dra. Andrea Maria</div>' +
         '<div class="vpc-rx-card">' +
         '<div class="rx-row"><span class="rx-lbl">OD</span> Esf: ' + escHtml(f.od_esf||'—') + ' &nbsp; Cil: ' + escHtml(f.od_cil||'—') + ' &nbsp; Eixo: ' + escHtml(f.od_eixo||'—') + (f.od_add ? ' &nbsp; ADD: '+escHtml(f.od_add) : '') + '</div>' +
         '<div class="rx-row"><span class="rx-lbl">OE</span> Esf: ' + escHtml(f.oe_esf||'—') + ' &nbsp; Cil: ' + escHtml(f.oe_cil||'—') + ' &nbsp; Eixo: ' + escHtml(f.oe_eixo||'—') + (f.oe_add ? ' &nbsp; ADD: '+escHtml(f.oe_add) : '') + '</div>' +
         '<hr class="rx-sep">' +
         (f.tipo ? '<span class="rx-tipo">' + escHtml(f.tipo) + '</span>' : '') +
         (f.validade ? '<div class="rx-validade">Validade: ' + escHtml(f.validade) + '</div>' : '') +
-        '</div></div>';
+        '</div>' +
+        '<div style="margin-top:6px;">' +
+        '<button onclick="vendorImprimirReceita(\'' + ag.id + '\')" style="background:#1a2060;color:#fff;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;">🖨️ Imprimir Receita Dra. Andrea</button>' +
+        '</div>' +
+        '</div>';
+    }
+
+    // ── Receita Dr. Edson: dados digitais ────────────────────────
+    var rx2DigitalHtml = '';
+    if (dados && dados.receita2 && dados.receita2.doc && dados.receita2.fields) {
+      const f2 = dados.receita2.fields;
+      rx2DigitalHtml = '<div class="vpc-rx-section">' +
+        '<div class="vpc-rx-label" style="color:#1a6030;">Receita Oftalmológica — Dr. Edson dos Santos Neto</div>' +
+        '<div class="vpc-rx-card">' +
+        '<div class="rx-row"><span class="rx-lbl">OD</span> Esf: ' + escHtml(f2.od_esf||'—') + ' &nbsp; Cil: ' + escHtml(f2.od_cil||'—') + ' &nbsp; Eixo: ' + escHtml(f2.od_eixo||'—') + (f2.od_add ? ' &nbsp; ADD: '+escHtml(f2.od_add) : '') + '</div>' +
+        '<div class="rx-row"><span class="rx-lbl">OE</span> Esf: ' + escHtml(f2.oe_esf||'—') + ' &nbsp; Cil: ' + escHtml(f2.oe_cil||'—') + ' &nbsp; Eixo: ' + escHtml(f2.oe_eixo||'—') + (f2.oe_add ? ' &nbsp; ADD: '+escHtml(f2.oe_add) : '') + '</div>' +
+        '<hr class="rx-sep">' +
+        '<div style="font-size:10px;color:#555;">Dr. Edson dos Santos Neto &middot; CRM 47.958</div>' +
+        '</div>' +
+        '<div style="margin-top:6px;">' +
+        '<button onclick="vendorImprimirReceita2(\'' + ag.id + '\')" style="background:#1a6030;color:#fff;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;">🖨️ Imprimir Receita Dr. Edson</button>' +
+        '</div>' +
+        '</div>';
     }
 
     // ── Arquivos por tipo ─────────────────────────────────
@@ -6762,7 +7086,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     var arquivosDiagnostico= _vendorSecaoArquivos(dados, 'diagnostico','🔍 Diagnóstico — Arquivos');
     var arquivosAtestado   = _vendorSecaoArquivos(dados, 'atestado',   '📝 Atestado — Arquivos');
 
-    var temAlgo = rxDigitalHtml || arquivosReceita || arquivosProntuario || arquivosDiagnostico || arquivosAtestado;
+    var temAlgo = rxDigitalHtml || rx2DigitalHtml || arquivosReceita || arquivosProntuario || arquivosDiagnostico || arquivosAtestado;
 
     var semRxHtml = '<div class="vpc-no-rx"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;display:block;margin:0 auto 6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Ainda sem documentos cadastrados</div>';
 
@@ -6773,8 +7097,161 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       '<div class="vpc-name">' + escHtml(ag.nome) + '</div>' +
       '<div class="vpc-meta">' + escHtml(ag.exame||'Consulta') + ' &middot; ' + formatarData(ag.data) + ' ' + ag.horario + '</div>' +
       '</div></div>' +
-      '<div class="vpc-body">' + (temAlgo ? (rxDigitalHtml + arquivosReceita + arquivosProntuario + arquivosDiagnostico + arquivosAtestado) : semRxHtml) + '</div>' +
+      '<div class="vpc-body">' + (temAlgo ? (rxDigitalHtml + rx2DigitalHtml + arquivosReceita + arquivosProntuario + arquivosDiagnostico + arquivosAtestado) : semRxHtml) + '</div>' +
       '</div>';
+  }
+
+
+  // ── IMPRIMIR RECEITA DRA. ANDREA pelo vendedor ────────────────
+  function vendorImprimirReceita(agId) {
+    const dados = medDados[agId];
+    if (!dados || !dados.receita || !dados.receita.fields) {
+      alert('Receita da Dra. Andrea não encontrada para este paciente.');
+      return;
+    }
+    const f = dados.receita.fields;
+    const nascFmt = f.nasc ? f.nasc.split('-').reverse().join('/') : '';
+    const dataFmt = f.data ? f.data.split('-').reverse().join('/') : '';
+
+    const lentes = [
+      f.lente_bifocal_ultex   ? 'Bifocal Ultex' : '',
+      f.lente_progressiva     ? 'Progressivas'  : '',
+      f.lente_bifocal_kriptok ? 'Bifocal Kriptok': '',
+      f.lente_visao_simples   ? 'Visão Simples'  : '',
+    ].filter(Boolean).join(', ') || '—';
+    const tratos = [
+      f.trat_antireflexo   ? 'Anti-reflexo'      : '',
+      f.trat_fotossensivel ? 'Fotossensível'      : '',
+      f.trat_filtroazul    ? 'Filtro Azul'        : '',
+      f.trat_miopia        ? 'Controle de Miopia' : '',
+      f.trat_antirrisco    ? 'Antirrisco'         : '',
+    ].filter(Boolean).join(', ') || '—';
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Receita Dra. Andrea — ${f.paciente||''}</title>
+    <style>
+      body{font-family:Arial,sans-serif;color:#1a2060;background:#fff;padding:20px 28px;max-width:640px;margin:0 auto;}
+      h2{font-size:22px;font-weight:900;letter-spacing:1px;margin:0 0 2px;line-height:1.1;}
+      .sub{font-size:9px;color:#444;margin-bottom:8px;text-align:center;}
+      hr{border:none;border-top:2px solid #1a2060;margin:8px 0 10px;}
+      .row{display:flex;gap:8px;align-items:flex-end;margin-bottom:5px;font-size:13px;}
+      .lbl{font-weight:700;white-space:nowrap;}
+      .ul{border-bottom:1.5px solid #1a2060;flex:1;min-width:60px;padding:1px 3px;}
+      table{width:100%;border-collapse:collapse;margin:10px 0;}
+      th{background:#1a2060;color:#fff;font-size:12px;font-weight:700;text-align:center;padding:5px 4px;border:1.5px solid #1a2060;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      td{border:1.5px solid #1a2060;padding:4px 6px;text-align:center;font-size:12px;}
+      td.lbl-cell{background:#1a2060;color:#fff;font-size:11px;font-weight:700;text-align:center;width:42px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      .checks{display:flex;gap:20px;font-size:12px;margin:8px 0;}
+      .obs{font-size:12px;border-bottom:1.5px solid #1a2060;min-height:28px;margin:8px 0 12px;padding:2px 4px;}
+      .avisos{font-size:9px;color:#1a2060;border-top:1px solid #c8cfe8;padding-top:5px;margin-bottom:16px;line-height:1.5;}
+      .stamp{text-align:center;margin-top:20px;}
+      .stamp-line{border-top:1.5px solid #1a2060;margin-bottom:4px;}
+      .stamp-name{font-size:13px;font-weight:700;}
+      .stamp-crm{font-size:10px;color:#444;}
+      @media print{body{padding:10mm 14mm;}}
+    </style></head><body>
+    <div style="text-align:center;margin-bottom:10px;">
+      <h2>PRESCRIÇÃO OPTOMÉTRICA</h2>
+      <div class="sub">O presente exame efetuado pelo optometrista, tem por finalidade a correção dos defeitos refrativos, a avaliação sensorial e motora,<br>através da indicação de lentes corretoras refrativas e/ou exercícios ortópticos.</div>
+    </div>
+    <hr>
+    <div class="row"><span class="lbl">Para o Sr(a).:</span><span class="ul">${f.paciente||''}</span><span class="lbl">Idade:</span><span class="ul" style="max-width:60px;">${f.idade||''}</span></div>
+    <div class="row"><span class="lbl">CPF:</span><span class="ul" style="max-width:140px;">${f.cpf||''}</span><span class="lbl">Nascimento:</span><span class="ul" style="max-width:120px;">${nascFmt}</span><span class="lbl">Data:</span><span class="ul" style="max-width:110px;">${dataFmt}</span></div>
+    <table>
+      <thead><tr><th></th><th>ESFÉRICO</th><th>CILÍNDRICO</th><th>EIXO</th><th>AV</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl-cell">OD</td><td>${f.od_esf||''}</td><td>${f.od_cil||''}</td><td>${f.od_eixo||''}</td><td>${f.od_av||''}</td></tr>
+        <tr><td class="lbl-cell">OE</td><td>${f.oe_esf||''}</td><td>${f.oe_cil||''}</td><td>${f.oe_eixo||''}</td><td>${f.oe_av||''}</td></tr>
+        <tr><td class="lbl-cell" style="font-size:9px;">ADIÇÃO</td><td>OD: ${f.od_add||''}</td><td colspan="2">OE: ${f.oe_add||''}</td><td style="font-size:10px;color:#888;">Adição</td></tr>
+        <tr><td class="lbl-cell" style="font-size:9px;">DNP</td><td>OD: ${f.od_dnp||''}</td><td colspan="2">OE: ${f.oe_dnp||''}</td><td style="font-size:10px;color:#888;">Dist. naso-pupilar</td></tr>
+      </tbody>
+    </table>
+    <div class="checks"><div><b>Tipos de Lentes:</b> ${lentes}</div><div><b>Tratamentos:</b> ${tratos}</div></div>
+    <div><b style="font-size:12px;">Observações:</b></div><div class="obs">${f.obs||''}</div>
+    <div class="avisos">*Retornar para próxima consulta após 1 (um) ano.<br>*Nos próximos 30 (trinta) dias de uso das lentes é normal sentir tonturas, dores de cabeça, desníveis e etc. As lentes bifocais e progressivas exigem maior período de adaptação.</div>
+    <div class="stamp"><div style="display:inline-block;min-width:200px;"><div class="stamp-line"></div><div class="stamp-name">Dra. Andrea Maria</div><div class="stamp-crm">CROOSP 431389 · Optometrista e Contactóloga</div></div></div>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`;
+
+    const w = window.open('', '_blank', 'width=700,height=900');
+    w.document.write(html);
+    w.document.close();
+  }
+
+  // ── IMPRIMIR RECEITA DR. EDSON pelo vendedor ──────────────────
+  function vendorImprimirReceita2(agId) {
+    const dados = medDados[agId];
+    if (!dados || !dados.receita2 || !dados.receita2.fields) {
+      alert('Receita do Dr. Edson não encontrada para este paciente.');
+      return;
+    }
+    const f = dados.receita2.fields;
+    const nascFmt = f.nasc ? f.nasc.split('-').reverse().join('/') : '';
+    const dataFmt = f.data ? f.data.split('-').reverse().join('/') : '';
+
+    const lentes = [
+      f.lente_bifocal_ultex   ? 'Bifocal Ultex' : '',
+      f.lente_progressiva     ? 'Progressivas' : '',
+      f.lente_bifocal_kriptok ? 'Bifocal Kriptok' : '',
+      f.lente_visao_simples   ? 'Visão Simples' : '',
+    ].filter(Boolean).join(', ') || '—';
+    const tratos = [
+      f.trat_antireflexo  ? 'Anti-reflexo' : '',
+      f.trat_fotossensivel? 'Fotossensível' : '',
+      f.trat_filtroazul   ? 'Filtro Azul' : '',
+      f.trat_miopia       ? 'Controle de Miopia' : '',
+      f.trat_antirrisco   ? 'Antirrisco' : '',
+    ].filter(Boolean).join(', ') || '—';
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Receita Dr. Edson — ${f.paciente||''}</title>
+    <style>
+      body{font-family:Arial,sans-serif;color:#1a2060;background:#fff;padding:20px 28px;max-width:640px;margin:0 auto;}
+      h2{font-size:22px;font-weight:900;letter-spacing:1px;margin:0 0 2px;line-height:1.1;}
+      .sub{font-size:9px;color:#444;margin-bottom:8px;}
+      hr{border:none;border-top:2px solid #1a2060;margin:8px 0 10px;}
+      .row{display:flex;gap:8px;align-items:flex-end;margin-bottom:5px;font-size:13px;}
+      .lbl{font-weight:700;white-space:nowrap;}
+      .ul{border-bottom:1.5px solid #1a2060;flex:1;min-width:60px;padding:1px 3px;}
+      table{width:100%;border-collapse:collapse;margin:10px 0;}
+      th{background:#1a2060;color:#fff;font-size:12px;font-weight:700;text-align:center;padding:5px 4px;border:1.5px solid #1a2060;}
+      td{border:1.5px solid #1a2060;padding:4px 6px;text-align:center;font-size:12px;}
+      td.lbl-cell{background:#1a2060;color:#fff;font-size:11px;font-weight:700;text-align:center;width:42px;}
+      .checks{display:flex;gap:20px;font-size:12px;margin:8px 0;}
+      .obs{font-size:12px;border-bottom:1.5px solid #1a2060;min-height:28px;margin:8px 0 12px;padding:2px 4px;}
+      .avisos{font-size:9px;color:#1a2060;border-top:1px solid #c8cfe8;padding-top:5px;margin-bottom:16px;line-height:1.5;}
+      .stamp{text-align:center;margin-top:20px;}
+      .stamp-line{border-top:1.5px solid #1a2060;margin-bottom:4px;}
+      .stamp-name{font-size:13px;font-weight:700;}
+      .stamp-crm{font-size:10px;color:#444;}
+      @media print{body{padding:10mm 14mm;} button{display:none;}}
+    </style></head><body>
+    <div style="text-align:center;margin-bottom:10px;">
+      <h2>CLÍNICA VISÃO PERFEITA</h2>
+      <div class="sub">Dr. Edson dos Santos Neto &nbsp;·&nbsp; CRM 47.958 &nbsp;·&nbsp; Oftalmologista</div>
+    </div>
+    <hr>
+    <div class="row"><span class="lbl">Para o Sr(a).:</span><span class="ul">${f.paciente||''}</span><span class="lbl">Idade:</span><span class="ul" style="max-width:60px;">${f.idade||''}</span></div>
+    <div class="row"><span class="lbl">CPF:</span><span class="ul" style="max-width:140px;">${f.cpf||''}</span><span class="lbl">Nascimento:</span><span class="ul" style="max-width:120px;">${nascFmt}</span><span class="lbl">Data:</span><span class="ul" style="max-width:110px;">${dataFmt}</span></div>
+    <table>
+      <thead><tr><th></th><th>ESFÉRICO</th><th>CILÍNDRICO</th><th>EIXO</th><th>AV</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl-cell">OD</td><td>${f.od_esf||''}</td><td>${f.od_cil||''}</td><td>${f.od_eixo||''}</td><td>${f.od_av||''}</td></tr>
+        <tr><td class="lbl-cell">OE</td><td>${f.oe_esf||''}</td><td>${f.oe_cil||''}</td><td>${f.oe_eixo||''}</td><td>${f.oe_av||''}</td></tr>
+        <tr><td class="lbl-cell" style="font-size:9px;">ADD</td><td>OD: ${f.od_add||''}</td><td>OE: ${f.oe_add||''}</td><td colspan="2" style="font-size:10px;color:#888;">Adição</td></tr>
+        <tr><td class="lbl-cell" style="font-size:9px;">DNP</td><td>OD: ${f.od_dnp||''}</td><td>OE: ${f.oe_dnp||''}</td><td colspan="2" style="font-size:10px;color:#888;">Distância naso-pupilar</td></tr>
+      </tbody>
+    </table>
+    <div class="checks"><div><b>Tipos de Lentes:</b> ${lentes}</div><div><b>Tratamentos:</b> ${tratos}</div></div>
+    <div><b style="font-size:12px;">Observações:</b></div><div class="obs">${f.obs||''}</div>
+    <div class="avisos">*Retornar para próxima consulta após 1 (um) ano.<br>*Nos próximos 30 (trinta) dias de uso das lentes é normal sentir tonturas, dores de cabeça, desníveis e etc.</div>
+    <div class="stamp"><div style="display:inline-block;min-width:200px;"><div class="stamp-line"></div><div class="stamp-name">Dr. Edson dos Santos Neto</div><div class="stamp-crm">CRM 47.958 · Oftalmologista</div></div></div>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`;
+
+    const w = window.open('', '_blank', 'width=700,height=900');
+    w.document.write(html);
+    w.document.close();
   }
 
 </script>
