@@ -4971,6 +4971,13 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     return n;
   }
 
+  // ── Abertura padronizada de link do WhatsApp (formato oficial Meta: api.whatsapp.com) ──
+  function waAbrirLink(telBruto, texto) {
+    const tel = waTelLimpo(telBruto || '');
+    const url = `https://api.whatsapp.com/send?phone=${tel}&text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+  }
+
   let _waSentAgId = null;
 
   function enviarWA(agId, msgId) {
@@ -4978,9 +4985,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const msg = mensagensWA.find(m => m.id === msgId);
     if (!ag || !msg) return;
     const texto = waInterpolate(msg.texto, ag);
-    const tel   = waTelLimpo(ag.tel);
-    const url   = `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
-    window.open(url, '_blank');
+    waAbrirLink(ag.tel, texto);
     fecharTodosWAMenus();
     // Perguntar se quer marcar o lembrete como enviado
     if (!ag.lembreteEnviado) {
@@ -5231,11 +5236,51 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function fecharTodosMenus() { document.querySelectorAll('.status-menu.open').forEach(m => m.classList.remove('open')); menuAbertoId = null; }
   document.addEventListener('click', fecharTodosMenus);
 
+  // ── VOUCHER AUTOMÁTICO — disparado ao marcar "Comprou o óculos" ──────────
+  function gerarMensagemVoucherCompra(ag) {
+    const primeiroNome = (ag.nome || '').trim().split(' ')[0];
+    const hoje = new Date();
+    const validade = new Date(hoje);
+    validade.setFullYear(validade.getFullYear() + 1);
+    const dd = String(validade.getDate()).padStart(2,'0');
+    const mm = String(validade.getMonth()+1).padStart(2,'0');
+    const yyyy = validade.getFullYear();
+    const dataValidade = `${dd}/${mm}/${yyyy}`;
+
+    return `Olá, ${primeiroNome}! 😊\n` +
+      `Foi um prazer enorme te atender na Óticas Maior 👑\n\n` +
+      `Esperamos que você esteja amando sua nova escolha! 🕶️\n` +
+      `Como forma de agradecimento especial, preparamos um presente exclusivo para a sua próxima visita:\n\n` +
+      `🎟️ VOUCHER DE R$ 197,00 DE DESCONTO\n` +
+      `📅 Válido até: ${dataValidade}\n\n` +
+      `Basta apresentar esta mensagem na loja na hora da compra.\n` +
+      `Te esperamos com os braços abertos! 🤗\n` +
+      `Óticas Maior 👑`;
+  }
+
+  function enviarVoucherCompra(ag) {
+    if (!ag.tel) {
+      toast('⚠️','Sem telefone cadastrado',`Não foi possível enviar o voucher para ${ag.nome}.`);
+      return;
+    }
+    const texto = gerarMensagemVoucherCompra(ag);
+    waAbrirLink(ag.tel, texto);
+    toast('🎟️','Voucher enviado',`Mensagem de agradecimento aberta para ${ag.nome}.`);
+  }
+
   async function setSituacao(id, situacao) {
     const ag = agendamentos.find(a => a.id === id);
     if (!ag) return;
     const situacaoAnterior = ag.situacao;
     ag.situacao = situacao;
+
+    // ── VOUCHER AUTOMÁTICO DE AGRADECIMENTO ──────────────────────────
+    // Disparado ANTES do await salvar() para preservar o gesto do clique do usuário
+    // (navegadores bloqueiam window.open() se vier depois de uma chamada assíncrona).
+    if (situacao === 'comprou') {
+      enviarVoucherCompra(ag);
+    }
+
     await salvar();
     renderTabela(); atualizarStats();
     toast('✅','Status atualizado',`${ag.nome} → ${SITUACOES[situacao].label}`);
