@@ -2825,6 +2825,9 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   <div class="topbar-actions">
     <span id="clock"></span>
 
+    <!-- Master: seletor de loja de escrita -->
+    <div id="masterLojaWrap" style="display:none;align-items:center;gap:6px;font-size:12px;padding:0 4px;"></div>
+
     <button class="security-badge" onclick="travar()" title="Sair / Travar">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       <span id="secLabel">•••</span>
@@ -3046,6 +3049,28 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       <div class="card-header">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-hint)"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
         <h2>Agendamentos</h2>
+      </div>
+
+      <!-- MASTER: Painel de visão consolidada (visível apenas para master) -->
+      <div id="masterPainel" style="display:none;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:linear-gradient(135deg,#1a1a3e,#1e3a5f);border-radius:var(--r-lg);border:1px solid rgba(90,100,200,0.25);">
+          <span style="font-size:16px;">👑</span>
+          <span style="font-size:12px;font-weight:700;color:#c7d2fe;flex:1;">Visão Master — todas as lojas</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            <button onclick="masterFiltrarTodasLojas()" id="btnTodasLojas"
+              style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid rgba(165,180,252,0.4);background:rgba(165,180,252,0.12);color:#a5b4fc;cursor:pointer;font-weight:600;font-family:var(--font);transition:background .15s;"
+              onmouseover="this.style.background='rgba(165,180,252,0.25)'" onmouseout="this.style.background=masterModoConsolidado?'rgba(165,180,252,0.3)':'rgba(165,180,252,0.12)'">
+              🗂️ Todos os pacientes
+            </button>
+            <span style="font-size:10px;color:rgba(165,180,252,0.5);">|</span>
+            <label style="font-size:11px;color:#a5b4fc;font-weight:600;">Filtrar por data:</label>
+            <input type="date" id="masterFiltroData"
+              style="font-size:11px;padding:3px 7px;border-radius:var(--r);border:1px solid rgba(165,180,252,0.4);background:rgba(30,30,60,0.8);color:#c7d2fe;font-family:var(--font);cursor:pointer;"
+              oninput="masterAplicarFiltroData(this.value)">
+            <button onclick="masterLimparFiltro()" style="font-size:10px;padding:3px 7px;border-radius:var(--r);border:1px solid rgba(165,180,252,0.3);background:none;color:rgba(165,180,252,0.6);cursor:pointer;font-family:var(--font);">✕ Limpar</button>
+          </div>
+        </div>
+        <div id="masterResumoPorLoja" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div>
       </div>
 
       <div class="search-bar">
@@ -4487,6 +4512,24 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   let inativTimer    = null;
   let escutandoFirebase = false;
 
+  // ── PERFIL DO USUÁRIO ────────────────────────────────────
+  // role: 'master' | 'loja'
+  // lojaId: 'loja1' | 'loja2' | 'loja3' | 'loja4'  (apenas quando role==='loja')
+  let perfilUsuario = null; // { role, lojaId, nome }
+
+  // IDs das lojas disponíveis no sistema
+  const LOJAS_IDS = ['loja1','loja2','loja3','loja4'];
+
+  // Retorna o caminho Firebase correto para os dados da loja
+  function dbPath(lojaId) { return `lojas/${lojaId}/dados`; }
+  function dbPathMsgs(lojaId) { return `lojas/${lojaId}/mensagensWA`; }
+  function dbPathFila(lojaId, id) { return `lojas/${lojaId}/fila_espera/${id}`; }
+  function dbPathPainel(lojaId) { return `lojas/${lojaId}/painel`; }
+
+  // Loja ativa para operações de escrita (master pode selecionar)
+  // Para usuário de loja, é sempre o lojaId do perfil
+  let lojaAtiva = null; // definido após carregar perfil
+
   const firebaseConfig = {
     apiKey:            "AIzaSyDEl8iA89RQLD75WEtUnE2cGtRQam6kI8M",
     authDomain:        "clinicaparticular.firebaseapp.com",
@@ -4501,11 +4544,57 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   const auth = firebase.auth();
   auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
 
+  // ── CARREGAR PERFIL DO USUÁRIO NO FIREBASE ───────────────
+  async function carregarPerfil(uid) {
+    try {
+      const snap = await db.ref(`usuarios/${uid}`).get();
+      if (snap.exists()) {
+        perfilUsuario = snap.val();
+      } else {
+        // Perfil não cadastrado — bloquear acesso
+        perfilUsuario = null;
+        await auth.signOut();
+        toast('❌','Acesso negado','Usuário não possui perfil cadastrado. Contate o administrador.');
+        return false;
+      }
+    } catch(e) {
+      console.warn('Erro ao carregar perfil', e);
+      perfilUsuario = null;
+      return false;
+    }
+    lojaAtiva = perfilUsuario.role === 'master' ? LOJAS_IDS[0] : perfilUsuario.lojaId;
+    return true;
+  }
+
+  // ── BADGE DE LOJA ATIVA (MASTER) ─────────────────────────
+  function renderBadgeMaster() {
+    const wrap = document.getElementById('masterLojaWrap');
+    if (!wrap) return;
+    if (!perfilUsuario || perfilUsuario.role !== 'master') { wrap.style.display='none'; return; }
+    wrap.style.display = 'flex';
+    const lojaInfo = LOJAS[lojaAtiva] || { label: lojaAtiva };
+    wrap.innerHTML = `
+      <span style="font-size:10px;color:var(--text-hint);font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Escrevendo em</span>
+      <select id="masterLojaSelect" onchange="masterTrocarLoja(this.value)"
+        style="font-size:12px;font-family:var(--font);border:1px solid var(--border-strong);border-radius:var(--r);padding:3px 7px;background:var(--surface2);color:var(--text);cursor:pointer;">
+        ${LOJAS_IDS.map(id => `<option value="${id}" ${id===lojaAtiva?'selected':''}>${LOJAS[id]?LOJAS[id].label:id}</option>`).join('')}
+      </select>`;
+  }
+  function masterTrocarLoja(lojaId) {
+    lojaAtiva = lojaId;
+    toast('🏪','Loja de escrita alterada', LOJAS[lojaId]?LOJAS[lojaId].label:lojaId);
+  }
+
   auth.onAuthStateChanged(async user => {
     if (user) {
+      const ok = await carregarPerfil(user.uid);
+      if (!ok) return;
       usuarioLogado = user;
       document.getElementById('loginScreen').classList.add('hidden');
-      document.getElementById('secLabel').textContent = user.email.split('@')[0];
+      // Mostrar nome/role no badge
+      const labelRole = perfilUsuario.role === 'master' ? '👑 Master' : (LOJAS[perfilUsuario.lojaId]?.label || perfilUsuario.lojaId);
+      document.getElementById('secLabel').textContent = `${user.email.split('@')[0]} · ${labelRole}`;
+      renderBadgeMaster();
       await carregarDados();
       await carregarMensagensWA();
       iniciarEscutaFirebase();
@@ -4513,13 +4602,18 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       init();
     } else {
       usuarioLogado = null;
+      perfilUsuario = null;
+      lojaAtiva = null;
       agendamentos  = [];
       notificacoes  = [];
       escutandoFirebase = false;
       if (_lembreteInterval) { clearInterval(_lembreteInterval); _lembreteInterval = null; }
-      db.ref('agenda_l2/dados').off();
+      // Desligar listeners de todas as lojas
+      LOJAS_IDS.forEach(lid => db.ref(dbPath(lid)).off());
       document.getElementById('loginScreen').classList.remove('hidden');
       document.getElementById('tabelaBody').innerHTML = '';
+      const wrap = document.getElementById('masterLojaWrap');
+      if (wrap) wrap.style.display='none';
       atualizarStats();
     }
   });
@@ -4583,63 +4677,99 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
   }
 
+  // ── SALVAR — escreve apenas na loja ativa ─────────────────
   async function salvar() {
-    if (!usuarioLogado) return;
+    if (!usuarioLogado || !lojaAtiva) return;
     try {
-      // Remover PDFs gerados automaticamente antes de gravar — eles são enormes em base64
-      // e podem ultrapassar o limite do Firebase (10MB). São recriados na hora ao abrir.
       const medDadosParaSalvar = {};
       Object.entries(medDados).forEach(([agId, tiposDados]) => {
         medDadosParaSalvar[agId] = {};
         Object.entries(tiposDados).forEach(([tipo, val]) => {
           if (val && Array.isArray(val.imgs)) {
-            medDadosParaSalvar[agId][tipo] = {
-              ...val,
-              imgs: val.imgs.filter(img => !img.isPdfGerado),
-            };
+            medDadosParaSalvar[agId][tipo] = { ...val, imgs: val.imgs.filter(img => !img.isPdfGerado) };
           } else {
             medDadosParaSalvar[agId][tipo] = val;
           }
         });
       });
-      await db.ref('agenda_l2/dados').set({ agendamentos, notificacoes, medDados: medDadosParaSalvar, ts: Date.now() });
+      // Grava apenas agendamentos da loja ativa
+      const agDaLoja = agendamentos.filter(a => (a.lojaId || lojaAtiva) === lojaAtiva);
+      const notifDaLoja = notificacoes.filter(n => {
+        const ag = agendamentos.find(a => a.id === n.agId);
+        return !ag || (ag.lojaId || lojaAtiva) === lojaAtiva;
+      });
+      const medDaLoja = {};
+      agDaLoja.forEach(a => { if (medDadosParaSalvar[a.id]) medDaLoja[a.id] = medDadosParaSalvar[a.id]; });
+      await db.ref(dbPath(lojaAtiva)).set({ agendamentos: agDaLoja, notificacoes: notifDaLoja, medDados: medDaLoja, ts: Date.now() });
     }
-    catch(e) { console.warn('Firebase write error', e); toast('⚠️','Erro ao salvar','Verifique sua conexão.'); }
+    catch(e) { console.warn('Firebase write error', e); toast('\u26a0\ufe0f','Erro ao salvar','Verifique sua conex\u00e3o.'); }
   }
 
+  // ── CARREGAR — master lê todas as lojas, loja lê só a sua ─
   async function carregarDados() {
-    if (!usuarioLogado) return;
+    if (!usuarioLogado || !perfilUsuario) return;
     try {
-      const snap = await db.ref('agenda_l2/dados').get();
-      if (snap.exists()) { const obj = snap.val(); agendamentos = obj.agendamentos || []; notificacoes = obj.notificacoes || []; medDados = obj.medDados || {}; }
+      if (perfilUsuario.role === 'master') {
+        const snaps = await Promise.all(LOJAS_IDS.map(lid => db.ref(dbPath(lid)).get()));
+        agendamentos = []; notificacoes = []; medDados = {};
+        snaps.forEach((snap, idx) => {
+          if (snap.exists()) {
+            const obj = snap.val(); const lid = LOJAS_IDS[idx];
+            agendamentos = agendamentos.concat((obj.agendamentos||[]).map(a => ({ ...a, lojaId: lid })));
+            notificacoes = notificacoes.concat(obj.notificacoes||[]);
+            Object.assign(medDados, obj.medDados||{});
+          }
+        });
+      } else {
+        const lid = perfilUsuario.lojaId;
+        const snap = await db.ref(dbPath(lid)).get();
+        if (snap.exists()) {
+          const obj = snap.val();
+          agendamentos = (obj.agendamentos||[]).map(a => ({ ...a, lojaId: lid }));
+          notificacoes = obj.notificacoes||[];
+          medDados = obj.medDados||{};
+        }
+      }
     } catch(e) { console.warn('Firebase read error', e); }
   }
 
   let primeiroSnapshot = true;
   let _lembreteInterval = null;
 
+  // ── ESCUTA TEMPO REAL ─────────────────────────────────────
   function iniciarEscutaFirebase() {
     if (escutandoFirebase) return;
     escutandoFirebase = true;
     primeiroSnapshot = true;
-    db.ref('agenda_l2/dados').on('value', snap => {
-      if (!usuarioLogado) return;
-      if (snap.exists()) { const obj = snap.val(); agendamentos = obj.agendamentos || []; notificacoes = obj.notificacoes || []; medDados = obj.medDados || {}; }
+    const lojasParaEscutar = perfilUsuario.role === 'master' ? LOJAS_IDS : [perfilUsuario.lojaId];
+    let snapshotCache = {};
+    function reconstruirEstado() {
+      agendamentos = []; notificacoes = []; medDados = {};
+      lojasParaEscutar.forEach(lid => {
+        const d = snapshotCache[lid]; if (!d) return;
+        agendamentos = agendamentos.concat((d.agendamentos||[]).map(a => ({ ...a, lojaId: lid })));
+        notificacoes = notificacoes.concat(d.notificacoes||[]);
+        Object.assign(medDados, d.medDados||{});
+      });
       renderCal(); renderTabela(); atualizarStats(); renderNotificacoes();
-      // Re-popular campos se médico já tem paciente aberto (resolve atraso no celular/outro PC)
       if (medPacienteSelecionado) {
         medLimparCampos && medLimparCampos();
         medCarregarDados(medPacienteSelecionado.id);
         medRenderGalerias();
       }
-      if (primeiroSnapshot) {
-        primeiroSnapshot = false;
-        verificarLembretes();
-        if (_lembreteInterval) clearInterval(_lembreteInterval);
-        _lembreteInterval = setInterval(() => {
-          if (usuarioLogado) verificarLembretes();
-        }, 60000);
-      }
+    }
+    lojasParaEscutar.forEach(lid => {
+      db.ref(dbPath(lid)).on('value', snap => {
+        if (!usuarioLogado) return;
+        snapshotCache[lid] = snap.exists() ? snap.val() : {};
+        reconstruirEstado();
+        if (primeiroSnapshot) {
+          primeiroSnapshot = false;
+          verificarLembretes();
+          if (_lembreteInterval) clearInterval(_lembreteInterval);
+          _lembreteInterval = setInterval(() => { if (usuarioLogado) verificarLembretes(); }, 60000);
+        }
+      });
     });
   }
 
@@ -4712,7 +4842,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   }
 
   async function _efetivarAgendamento(nome, tel, data, horario, exame, isFamilia, vendedor) {
-    agendamentos.unshift({ id: Date.now().toString(), nome, tel, data, horario, exame: exame || 'Não informado', criadoEm: new Date().toISOString(), lembreteEnviado: false, isFamilia: !!isFamilia, vendedor: vendedor || '' });
+    agendamentos.unshift({ id: Date.now().toString(), nome, tel, data, horario, exame: exame || 'Não informado', criadoEm: new Date().toISOString(), lembreteEnviado: false, isFamilia: !!isFamilia, vendedor: vendedor || '', lojaId: lojaAtiva || '' });
     await salvar();
     renderCal(); renderTabela(); atualizarStats();
     toast('✅','Agendado!',`${nome} — ${formatarData(data)} às ${horario}`);
@@ -4943,13 +5073,13 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   async function salvarMensagensWA() {
     if (!usuarioLogado) return;
-    try { await db.ref('agenda_l2/mensagensWA').set(mensagensWA); }
+    try { await db.ref(dbPathMsgs(lojaAtiva)).set(mensagensWA); }
     catch(e) { console.warn('Firebase mensagensWA write error', e); }
   }
 
   async function carregarMensagensWA() {
     try {
-      const snap = await db.ref('agenda_l2/mensagensWA').get();
+      const snap = await db.ref(dbPathMsgs(lojaAtiva)).get();
       if (snap.exists()) mensagensWA = snap.val() || [];
     } catch(e) { console.warn('Firebase mensagensWA read error', e); }
   }
@@ -5288,7 +5418,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     // ── FILA DE ESPERA ───────────────────────────────────────────────
     if (situacao === 'veio') {
       try {
-        await db.ref('agenda_l2/fila_espera/' + id).set({
+        await db.ref(dbPathFila(ag.lojaId||lojaAtiva, id)).set({
           nome:         ag.nome,
           exame:        ag.exame || 'Consulta',
           horario:      ag.horario || '',
@@ -5298,16 +5428,16 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         });
       } catch(e) { console.warn('Firebase fila_espera write error', e); }
     } else if (situacaoAnterior === 'veio') {
-      try { await db.ref('agenda_l2/fila_espera/' + id).remove(); }
+      try { await db.ref(dbPathFila(ag.lojaId||lojaAtiva, id)).remove(); }
       catch(e) { console.warn('Firebase fila_espera remove error', e); }
     }
     // ── PAINEL TV ───────────────────────────────────────────────────────────
     if (situacao === 'chamar') {
-      try { await db.ref('agenda_l2/painel').set({ status:'chamando', nome:ag.nome, exame:ag.exame||'Consulta', ts:Date.now() }); }
+      try { await db.ref(dbPathPainel(ag.lojaId||lojaAtiva)).set({ status:'chamando', nome:ag.nome, exame:ag.exame||'Consulta', ts:Date.now() }); }
       catch(e) { console.warn('Firebase painel write error', e); }
     } else if (situacaoAnterior === 'chamar') {
       const nomeExibir = situacao === 'em_atendimento' ? ag.nome : '';
-      try { await db.ref('agenda_l2/painel').set({ status:'parar', nome:nomeExibir, ts:Date.now() }); }
+      try { await db.ref(dbPathPainel(ag.lojaId||lojaAtiva)).set({ status:'parar', nome:nomeExibir, ts:Date.now() }); }
       catch(e) { console.warn('Firebase painel write error', e); }
     }
   }
@@ -5495,6 +5625,22 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const btnL = document.getElementById('btnLimparFiltros');
 
     let filtrados = agendamentos;
+
+    // Master: filtro consolidado por data (mostra todas as lojas ordenadas por horário)
+    if (perfilUsuario && perfilUsuario.role === 'master') {
+      masterRenderResumo();
+      if (masterModoConsolidado) {
+        // Não filtrar por loja — mostra todas
+      } else if (!filtrosLojaAtivos.size) {
+        // Se não há filtro de loja e não está em modo consolidado, mostra apenas a loja ativa
+        filtrados = filtrados.filter(a => a.lojaId === lojaAtiva);
+      }
+      if (masterFiltroDia) filtrados = filtrados.filter(a => a.data === masterFiltroDia);
+    } else if (perfilUsuario && perfilUsuario.role === 'loja') {
+      // Usuário de loja vê apenas seus pacientes
+      filtrados = filtrados.filter(a => a.lojaId === perfilUsuario.lojaId);
+    }
+
     if (busca) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(busca) || a.tel.includes(busca) || (a.exame||'').toLowerCase().includes(busca));
     if (filtrosAtivos.size > 0) filtrados = filtrados.filter(a => filtrosAtivos.has(a.situacao || 'agendado'));
     if (filtrosLojaAtivos.size > 0) filtrados = filtrados.filter(a => filtrosLojaAtivos.has(a.loja || ''));
@@ -5509,8 +5655,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     }
     if (filtroDia) filtrados = filtrados.filter(a => a.data === filtroDia);
 
-    // Quando filtra por dia, ordena por horário; caso contrário, ordem alfabética
-    if (filtroDia) {
+    // Quando filtra por dia (ou master filtra por data), ordena por horário; caso contrário, ordem alfabética
+    if (filtroDia || masterFiltroDia) {
       filtrados = filtrados.slice().sort((a, b) => {
         const ha = (a.horario || '00:00').replace(':','').padStart(4,'0');
         const hb = (b.horario || '00:00').replace(':','').padStart(4,'0');
@@ -5859,12 +6005,67 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function calMes(delta) { calMesN += delta; if (calMesN < 0) { calMesN = 11; calAno--; } if (calMesN > 11) { calMesN = 0; calAno++; } renderCal(); }
   function calHoje() { const h = new Date(); calAno = h.getFullYear(); calMesN = h.getMonth(); renderCal(); }
 
+  // ── MASTER: VISÃO CONSOLIDADA ────────────────────────────
+  let masterModoConsolidado = false;
+  let masterFiltroDia = null; // 'YYYY-MM-DD'
+
+  function masterMostrarPainel() {
+    if (!perfilUsuario || perfilUsuario.role !== 'master') return;
+    document.getElementById('masterPainel').style.display = 'block';
+    masterRenderResumo();
+  }
+
+  function masterRenderResumo() {
+    const el = document.getElementById('masterResumoPorLoja');
+    if (!el) return;
+    el.innerHTML = LOJAS_IDS.map(lid => {
+      const total = agendamentos.filter(a => a.lojaId === lid).length;
+      const loja = LOJAS[lid] || { label: lid, dot: '#888' };
+      return `<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);display:inline-flex;align-items:center;gap:5px;">
+        <span style="width:7px;height:7px;border-radius:50%;background:${loja.dot};display:inline-block;"></span>
+        ${loja.label}: <strong style="color:rgba(255,255,255,0.9);">${total}</strong>
+      </span>`;
+    }).join('');
+  }
+
+  function masterFiltrarTodasLojas() {
+    masterModoConsolidado = !masterModoConsolidado;
+    const btn = document.getElementById('btnTodasLojas');
+    if (btn) btn.style.background = masterModoConsolidado ? 'rgba(165,180,252,0.3)' : 'rgba(165,180,252,0.12)';
+    // Limpar filtros de loja individuais quando ativa modo consolidado
+    if (masterModoConsolidado) { filtrosLojaAtivos.clear(); document.querySelectorAll('.ftag').forEach(b => { if (b.dataset.loja) b.classList.remove('active'); }); }
+    masterFiltroDia = null;
+    if (document.getElementById('masterFiltroData')) document.getElementById('masterFiltroData').value = '';
+    renderTabela();
+  }
+
+  function masterAplicarFiltroData(data) {
+    masterFiltroDia = data || null;
+    masterModoConsolidado = true;
+    const btn = document.getElementById('btnTodasLojas');
+    if (btn) btn.style.background = 'rgba(165,180,252,0.3)';
+    filtrosLojaAtivos.clear();
+    document.querySelectorAll('.ftag').forEach(b => { if (b.dataset.loja) b.classList.remove('active'); });
+    renderTabela();
+  }
+
+  function masterLimparFiltro() {
+    masterFiltroDia = null;
+    masterModoConsolidado = false;
+    if (document.getElementById('masterFiltroData')) document.getElementById('masterFiltroData').value = '';
+    const btn = document.getElementById('btnTodasLojas');
+    if (btn) btn.style.background = 'rgba(165,180,252,0.12)';
+    renderTabela();
+  }
+
   // ── INIT ─────────────────────────────────────────────────
   function init() {
     const hoje = new Date();
     document.getElementById('data').value    = hoje.toISOString().split('T')[0];
     document.getElementById('horario').value = '08:00';
     setInterval(() => { if(usuarioLogado) { verificarLembretes(); renderTabela(); } }, 5*60*1000);
+    masterMostrarPainel();
+    renderCal(); renderTabela(); atualizarStats();
   }
 
   ['nome','telefone','exame'].forEach(id =>
