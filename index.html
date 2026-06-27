@@ -4446,13 +4446,18 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 <div id="modalSenhaAdmin">
   <div class="senha-admin-box">
     <h3>🔐 Confirmação necessária</h3>
-    <p>Para mover <strong id="modalNomePaciente"></strong> de <span class="loja-destino" id="modalLojaOrigem"></span> para <span class="loja-destino" id="modalLojaDestino"></span>, insira a senha de administrador da <span id="modalLojaOrigemNome" style="font-weight:700"></span>.</p>
+    <p id="modalSenhaAdminTextoTroca">Para mover <strong id="modalNomePaciente"></strong> de <span class="loja-destino" id="modalLojaOrigem"></span> para <span class="loja-destino" id="modalLojaDestino"></span>, insira a senha de administrador da <span id="modalLojaOrigemNome" style="font-weight:700"></span>.</p>
+    <p id="modalSenhaAdminTextoAgendamento" style="display:none;font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:4px;">
+      O paciente <strong id="modalAgNomePaciente"></strong> já possui agendamento em <strong id="modalAgLojaOrigemNome"></strong>
+      para <strong id="modalAgDataExistente"></strong>. Para cadastrar este novo agendamento em <strong id="modalAgLojaDestinoNome"></strong>,
+      insira a senha de administrador de <strong id="modalAgLojaOrigemNome2"></strong>.
+    </p>
     <input type="password" class="senha-admin-input" id="senhaAdminInput" placeholder="Senha do administrador"
-      onkeydown="if(event.key==='Enter') confirmarTrocaLoja()">
+      onkeydown="if(event.key==='Enter') { if(_pendingAgendamentoOutraLoja) confirmarAgendamentoOutraLoja(); else confirmarTrocaLoja(); }">
     <div class="senha-admin-error" id="senhaAdminError"></div>
     <div class="senha-admin-actions">
       <button class="btn-admin-cancelar" onclick="fecharModalSenha()">Cancelar</button>
-      <button class="btn-admin-confirmar" onclick="confirmarTrocaLoja()">Confirmar</button>
+      <button class="btn-admin-confirmar" id="btnSenhaAdminConfirmar" onclick="confirmarTrocaLoja()">Confirmar</button>
     </div>
   </div>
 </div>
@@ -4807,6 +4812,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   let _pendingAgendamentoData = null;
 
+  let _pendingAgendamentoOutraLoja = null; // { nome, tel, data, horario, exame, vendedor, lojaOrigemId }
+
   async function agendar() {
     const nome    = document.getElementById('nome').value.trim();
     const tel     = document.getElementById('telefone').value.trim();
@@ -4816,15 +4823,85 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const vendedor = document.getElementById('vendedor').value;
     if (!nome || !tel || !data || !horario) { toast('⚠️','Campos obrigatórios','Preencha nome, telefone, data e horário.'); return; }
 
-    // Verificar duplicata de telefone
     const telLimpo = tel.replace(/\D/g,'');
-    const duplicado = agendamentos.find(a => a.tel.replace(/\D/g,'') === telLimpo);
-    if (duplicado) {
+
+    // Verificar duplicata de telefone NA MESMA LOJA (agendamentos já em memória)
+    const duplicadoMesmaLoja = agendamentos.find(a => a.tel.replace(/\D/g,'') === telLimpo);
+    if (duplicadoMesmaLoja) {
       _pendingAgendamentoData = { nome, tel, data, horario, exame, vendedor };
-      document.getElementById('dupTelInfo').textContent = '📞 ' + tel + ' — já cadastrado para: ' + duplicado.nome;
+      document.getElementById('dupTelInfo').textContent = '📞 ' + tel + ' — já cadastrado para: ' + duplicadoMesmaLoja.nome;
       document.getElementById('modalDupTel').classList.add('open');
       return;
     }
+
+    // Verificar se o paciente já pertence a OUTRA loja (busca direta no Firebase)
+    // Trava aplicada apenas se o agendamento existente na outra loja for de até 20 dias atrás (campo "data")
+    const JANELA_DIAS_OUTRA_LOJA = 20;
+    const hojeMs = new Date().setHours(0,0,0,0);
+    const lojaAtualId = (perfilUsuario && perfilUsuario.role === 'master') ? lojaAtiva : perfilUsuario.lojaId;
+    const outrasLojas = LOJAS_IDS.filter(lid => lid !== lojaAtualId);
+    try {
+      const snaps = await Promise.all(outrasLojas.map(lid => db.ref(dbPath(lid)).get().then(snap => ({ lid, snap }))));
+      for (const { lid, snap } of snaps) {
+        if (!snap.exists()) continue;
+        const obj = snap.val();
+        const agsLoja = obj.agendamentos || [];
+        const candidatos = agsLoja.filter(a => (a.tel||'').replace(/\D/g,'') === telLimpo);
+        // Entre os agendamentos do mesmo telefone nessa loja, pega o mais recente por data
+        const encontrado = candidatos
+          .filter(a => {
+            if (!a.data) return false;
+            const dataAgMs = new Date(a.data + 'T00:00:00').getTime();
+            const diffDias = (hojeMs - dataAgMs) / (1000*60*60*24);
+            return diffDias <= JANELA_DIAS_OUTRA_LOJA; // inclui futuros e até 20 dias no passado
+          })
+          .sort((a,b) => new Date(b.data) - new Date(a.data))[0];
+        if (encontrado) {
+          _pendingAgendamentoOutraLoja = { nome, tel, data, horario, exame, vendedor, lojaOrigemId: lid };
+          abrirModalAgendamentoOutraLoja(encontrado, lid, lojaAtualId);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao verificar outras lojas', e);
+      // Em caso de falha na verificação, segue o fluxo normal (não bloqueia o atendimento)
+    }
+
+    await _efetivarAgendamento(nome, tel, data, horario, exame, false, vendedor);
+  }
+
+  function abrirModalAgendamentoOutraLoja(agExistente, lojaOrigemId, lojaDestinoId) {
+    document.getElementById('modalSenhaAdminTextoTroca').style.display = 'none';
+    document.getElementById('modalSenhaAdminTextoAgendamento').style.display = 'block';
+    document.getElementById('modalAgNomePaciente').textContent = agExistente.nome;
+    document.getElementById('modalAgLojaOrigemNome').textContent = (LOJAS[lojaOrigemId] && LOJAS[lojaOrigemId].label) || lojaOrigemId;
+    document.getElementById('modalAgLojaOrigemNome2').textContent = (LOJAS[lojaOrigemId] && LOJAS[lojaOrigemId].label) || lojaOrigemId;
+    document.getElementById('modalAgLojaDestinoNome').textContent = (LOJAS[lojaDestinoId] && LOJAS[lojaDestinoId].label) || lojaDestinoId;
+    document.getElementById('modalAgDataExistente').textContent = formatarData(agExistente.data) + ' às ' + agExistente.horario;
+    const btn = document.getElementById('btnSenhaAdminConfirmar');
+    btn.setAttribute('onclick', 'confirmarAgendamentoOutraLoja()');
+    document.getElementById('senhaAdminInput').value = '';
+    document.getElementById('senhaAdminError').textContent = '';
+    document.getElementById('modalSenhaAdmin').classList.add('open');
+    setTimeout(() => document.getElementById('senhaAdminInput').focus(), 80);
+  }
+
+  async function confirmarAgendamentoOutraLoja() {
+    if (!_pendingAgendamentoOutraLoja) return;
+    const senha = document.getElementById('senhaAdminInput').value;
+    const errEl = document.getElementById('senhaAdminError');
+    const { lojaOrigemId } = _pendingAgendamentoOutraLoja;
+    const senhaCorreta = SENHAS_LOJA[lojaOrigemId] || '';
+    if (!senhaCorreta || senha !== senhaCorreta) {
+      errEl.textContent = '❌ Senha incorreta.';
+      document.getElementById('senhaAdminInput').value = '';
+      document.getElementById('senhaAdminInput').focus();
+      return;
+    }
+    errEl.textContent = '';
+    document.getElementById('modalSenhaAdmin').classList.remove('open');
+    const { nome, tel, data, horario, exame, vendedor } = _pendingAgendamentoOutraLoja;
+    _pendingAgendamentoOutraLoja = null;
     await _efetivarAgendamento(nome, tel, data, horario, exame, false, vendedor);
   }
 
@@ -4842,7 +4919,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   }
 
   async function _efetivarAgendamento(nome, tel, data, horario, exame, isFamilia, vendedor) {
-    agendamentos.unshift({ id: Date.now().toString(), nome, tel, data, horario, exame: exame || 'Não informado', criadoEm: new Date().toISOString(), lembreteEnviado: false, isFamilia: !!isFamilia, vendedor: vendedor || '', lojaId: lojaAtiva || '' });
+    const lojaParaAgendamento = (perfilUsuario && perfilUsuario.role === 'master') ? lojaAtiva : perfilUsuario.lojaId;
+    agendamentos.unshift({ id: Date.now().toString(), nome, tel, data, horario, exame: exame || 'Não informado', criadoEm: new Date().toISOString(), lembreteEnviado: false, isFamilia: !!isFamilia, vendedor: vendedor || '', lojaId: lojaParaAgendamento || '' });
     await salvar();
     renderCal(); renderTabela(); atualizarStats();
     toast('✅','Agendado!',`${nome} — ${formatarData(data)} às ${horario}`);
@@ -5554,8 +5632,11 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const ag = agendamentos.find(a => a.id === agId);
     if (!ag) return;
     _pendingLojaId = agId; _pendingLojaChave = lojaChave;
-    if (!ag.loja) { confirmarTrocaLojaDirecto(); return; }
-    const lojaOrigemInfo = ag.loja ? (LOJAS[ag.loja] || { label: ag.loja }) : null;
+    if (!ag.lojaId) { confirmarTrocaLojaDirecto(); return; }
+    const lojaOrigemInfo = ag.lojaId ? (LOJAS[ag.lojaId] || { label: ag.lojaId }) : null;
+    document.getElementById('modalSenhaAdminTextoTroca').style.display = 'block';
+    document.getElementById('modalSenhaAdminTextoAgendamento').style.display = 'none';
+    document.getElementById('btnSenhaAdminConfirmar').setAttribute('onclick', 'confirmarTrocaLoja()');
     document.getElementById('modalNomePaciente').textContent  = ag.nome;
     document.getElementById('modalLojaOrigem').textContent    = lojaOrigemInfo ? lojaOrigemInfo.label : '';
     document.getElementById('modalLojaDestino').textContent   = LOJAS[lojaChave].label;
@@ -5565,12 +5646,16 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     document.getElementById('modalSenhaAdmin').classList.add('open');
     setTimeout(() => document.getElementById('senhaAdminInput').focus(), 80);
   }
-  function fecharModalSenha() { document.getElementById('modalSenhaAdmin').classList.remove('open'); _pendingLojaId = null; _pendingLojaChave = null; }
+  function fecharModalSenha() {
+    document.getElementById('modalSenhaAdmin').classList.remove('open');
+    _pendingLojaId = null; _pendingLojaChave = null;
+    _pendingAgendamentoOutraLoja = null;
+  }
   async function confirmarTrocaLoja() {
     const senha = document.getElementById('senhaAdminInput').value;
     const errEl = document.getElementById('senhaAdminError');
     const ag = agendamentos.find(a => a.id === _pendingLojaId);
-    const lojaOrigem = ag && ag.loja ? ag.loja : _pendingLojaChave;
+    const lojaOrigem = ag && ag.lojaId ? ag.lojaId : _pendingLojaChave;
     const senhaCorreta = SENHAS_LOJA[lojaOrigem] || '';
     if (!senhaCorreta || senha !== senhaCorreta) { errEl.textContent = '❌ Senha incorreta.'; document.getElementById('senhaAdminInput').value = ''; document.getElementById('senhaAdminInput').focus(); return; }
     errEl.textContent = ''; document.getElementById('modalSenhaAdmin').classList.remove('open');
@@ -5580,7 +5665,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   async function aplicarTrocaLoja(agId, lojaChave) {
     const ag = agendamentos.find(a => a.id === agId);
     if (!ag) return;
-    ag.loja = lojaChave;
+    ag.lojaId = lojaChave;
     await salvar(); renderTabela();
     toast('🏪','Loja atualizada',`${ag.nome} → ${LOJAS[lojaChave].label}`);
     _pendingLojaId = null; _pendingLojaChave = null;
@@ -5870,12 +5955,25 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   // ── PAINEL TV ────────────────────────────────────────────
   function abrirPainelTV() {
+    // Determina de qual loja o painel deve exibir as chamadas
+    let lojaIdPainel = null;
+    if (perfilUsuario && perfilUsuario.role === 'master') {
+      const escolha = prompt('Painel de qual loja? Digite: loja1, loja2, loja3 ou loja4');
+      if (!escolha) return;
+      lojaIdPainel = escolha.trim().toLowerCase();
+      if (!LOJAS_IDS.includes(lojaIdPainel)) { toast('⚠️','Loja inválida','Digite loja1, loja2, loja3 ou loja4.'); return; }
+    } else if (perfilUsuario && perfilUsuario.lojaId) {
+      lojaIdPainel = perfilUsuario.lojaId;
+    } else {
+      toast('⚠️','Loja não definida','Não foi possível identificar a loja para o painel.'); return;
+    }
+    const nomeLojaPainel = (LOJAS[lojaIdPainel] && LOJAS[lojaIdPainel].label) || lojaIdPainel;
     const painelHTML = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PAINEL CLÍNICA VISÃO PERFEITA</title>
+<title>PAINEL CLÍNICA VISÃO PERFEITA — ${nomeLojaPainel}</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"><\/script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"><\/script>
 <style>
@@ -5916,7 +6014,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 <\/head>
 <body>
   <div class="logo-bar">
-    <h1>📋 CLÍNICA VISÃO PERFEITA<\/h1>
+    <h1>📋 CLÍNICA VISÃO PERFEITA — ${nomeLojaPainel}<\/h1>
     <div style="display:flex;align-items:center;gap:16px;">
       <span class="status-conn offline" id="connStatus">● Conectando...<\/span>
       <div class="clock" id="clock2">--:--:--<\/div>
@@ -5947,6 +6045,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   tick();setInterval(tick,1000);
   firebase.initializeApp({apiKey:"AIzaSyDEl8iA89RQLD75WEtUnE2cGtRQam6kI8M",authDomain:"clinicaparticular.firebaseapp.com",databaseURL:"https://clinicaparticular-default-rtdb.firebaseio.com",projectId:"clinicaparticular",storageBucket:"clinicaparticular.firebasestorage.app",messagingSenderId:"640766289975",appId:"1:640766289975:web:ed63707711b46e051bf7b2"});
   const db=firebase.database();
+  const LOJA_ID_PAINEL = ${JSON.stringify(lojaIdPainel)};
   db.ref('.info/connected').on('value',snap=>{const el=document.getElementById('connStatus');if(snap.val()){el.textContent='● Online';el.className='status-conn online';}else{el.textContent='● Offline';el.className='status-conn offline';}});
   let audioCtx=null,chamandoInterval=null,nomeAtual='',ultimoTs=0,autoLimparTimer=null;
   function getAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
@@ -5954,17 +6053,17 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function mostrarChamada(nome,exame){nomeAtual=nome;document.getElementById('pcNome').textContent=nome;document.getElementById('pcExame').textContent=exame||'Consulta';document.getElementById('eAguardando').style.display='none';document.getElementById('eAtendimento').classList.remove('ativo');document.getElementById('eChamando').classList.add('ativo');tocaSom();if(chamandoInterval)clearInterval(chamandoInterval);chamandoInterval=setInterval(tocaSom,6000);if(autoLimparTimer)clearTimeout(autoLimparTimer);autoLimparTimer=setTimeout(mostrarAguardando,3*60*1000);}
   function mostrarAtendimento(nome){if(chamandoInterval){clearInterval(chamandoInterval);chamandoInterval=null;}if(autoLimparTimer){clearTimeout(autoLimparTimer);autoLimparTimer=null;}document.getElementById('pcNomeAtend').textContent=nome||nomeAtual||'—';document.getElementById('eAguardando').style.display='none';document.getElementById('eChamando').classList.remove('ativo');document.getElementById('eAtendimento').classList.add('ativo');setTimeout(mostrarAguardando,5000);}
   function mostrarAguardando(){if(chamandoInterval){clearInterval(chamandoInterval);chamandoInterval=null;}if(autoLimparTimer){clearTimeout(autoLimparTimer);autoLimparTimer=null;}document.getElementById('eAguardando').style.display='';document.getElementById('eChamando').classList.remove('ativo');document.getElementById('eAtendimento').classList.remove('ativo');}
-  db.ref('agenda_l2/painel').on('value',snap=>{if(!snap.exists())return;const d=snap.val();if(!d||!d.ts)return;if(d.ts===ultimoTs)return;ultimoTs=d.ts;if(d.status==='chamando'){mostrarChamada(d.nome,d.exame);}else if(d.status==='parar'){mostrarAtendimento(d.nome||nomeAtual);}});
+  db.ref('lojas/'+LOJA_ID_PAINEL+'/painel').on('value',snap=>{if(!snap.exists())return;const d=snap.val();if(!d||!d.ts)return;if(d.ts===ultimoTs)return;ultimoTs=d.ts;if(d.status==='chamando'){mostrarChamada(d.nome,d.exame);}else if(d.status==='parar'){mostrarAtendimento(d.nome||nomeAtual);}});
 <\/script>
 <\/body>
 <\/html>`;
     const blob = new Blob([painelHTML], { type: 'text/html' });
     const url  = URL.createObjectURL(blob);
-    const w    = window.open(url, 'PainelTV', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no');
+    const w    = window.open(url, 'PainelTV_' + lojaIdPainel, 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no');
     if (!w) {
       const a = document.createElement('a');
-      a.href = url; a.download = 'painel_tv_clinica.html'; a.click();
-      toast('📺','Arquivo baixado!','Abra o painel_tv_clinica.html na TV pelo navegador.');
+      a.href = url; a.download = 'painel_tv_' + lojaIdPainel + '.html'; a.click();
+      toast('📺','Arquivo baixado!','Abra o painel_tv_' + lojaIdPainel + '.html na TV pelo navegador.');
     }
   }
 
@@ -6250,19 +6349,26 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     // Limpar campos do paciente anterior
     medLimparCampos();
 
-    // Sempre buscar dados frescos do Firebase
-    db.ref('agenda_l2/dados').get().then(snap => {
-      if (snap.exists()) {
-        const obj = snap.val();
-        medDados = obj.medDados || medDados;
-        if (obj.agendamentos) agendamentos = obj.agendamentos;
-      }
-      medCarregarDados(id);
-      medRenderGalerias();
-    }).catch(() => {
-      medCarregarDados(id);
-      medRenderGalerias();
-    });
+    // Sempre buscar dados frescos do Firebase (apenas das lojas que o usuário tem permissão de ver)
+    const lojasParaAtualizar = (perfilUsuario && perfilUsuario.role === 'master') ? LOJAS_IDS : [ag.lojaId || (perfilUsuario && perfilUsuario.lojaId)];
+    Promise.all(lojasParaAtualizar.filter(Boolean).map(lid => db.ref(dbPath(lid)).get().then(snap => ({ lid, snap }))))
+      .then(resultados => {
+        resultados.forEach(({ lid, snap }) => {
+          if (!snap.exists()) return;
+          const obj = snap.val();
+          Object.assign(medDados, obj.medDados || {});
+          if (obj.agendamentos) {
+            const outrasLojas = agendamentos.filter(a => a.lojaId !== lid);
+            agendamentos = outrasLojas.concat(obj.agendamentos.map(a => ({ ...a, lojaId: lid })));
+          }
+        });
+        medCarregarDados(id);
+        medRenderGalerias();
+      })
+      .catch(() => {
+        medCarregarDados(id);
+        medRenderGalerias();
+      });
   }
 
   function medCarregarDados(agId) {
@@ -7050,64 +7156,34 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     { key: 'loja4', label: 'Loja 4', dot: '#7E22CE', cls: 'vls-loja4', avatarBg: '#7E22CE' },
   ];
 
-  let vendorLojaSelecionadaLogin = null;
   let vendorLojaAtiva = null;
-  let vendorLojasDesbloqueadas = new Set();
   let vendorLojaPendenteTroca = null;
 
   function abrirPortalVendedor() {
-    if (!usuarioLogado) { toast('\u26a0\ufe0f','Login necessário','Faça login no sistema primeiro.'); return; }
-    vendorRenderLoginGrid();
-    document.getElementById('vendorSenhaInput').value = '';
-    document.getElementById('vendorLoginError').classList.remove('show');
-    vendorLojaSelecionadaLogin = null;
-    document.getElementById('vendorLoginScreen').classList.add('open');
-    vendorRenderNav();
-    vendorRenderCta();
-  }
-
-  function vendorFecharLogin() {
-    document.getElementById('vendorLoginScreen').classList.remove('open');
-  }
-
-  function vendorRenderLoginGrid() {
-    const grid = document.getElementById('vendorLojaGrid');
-    if (!grid) return;
-    grid.innerHTML = VENDOR_LOJAS.map(l => `
-      <button class="vendor-loja-btn ${l.cls}" onclick="vendorSelecionarLojaLogin('${l.key}',this)">
-        <span class="vl-dot" style="background:${l.dot};"></span>
-        ${l.label}
-      </button>`).join('');
-  }
-
-  function vendorSelecionarLojaLogin(key, btn) {
-    vendorLojaSelecionadaLogin = key;
-    document.querySelectorAll('.vendor-loja-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    document.getElementById('vendorLoginError').classList.remove('show');
-    document.getElementById('vendorSenhaInput').focus();
-  }
-
-  function vendorConfirmarLogin() {
-    const errEl  = document.getElementById('vendorLoginError');
-    const errMsg = document.getElementById('vendorLoginErrorMsg');
-    if (!vendorLojaSelecionadaLogin) {
-      errMsg.textContent = 'Selecione uma loja antes de continuar.';
-      errEl.classList.add('show'); return;
+    if (!usuarioLogado || !perfilUsuario) { toast('\u26a0\ufe0f','Login necessário','Faça login no sistema primeiro.'); return; }
+    if (perfilUsuario.role === 'master') {
+      // Master escolhe qualquer loja, sem necessidade de senha (já tem acesso total)
+      document.getElementById('vendorPage').classList.add('open');
+      vendorLojaAtiva = null;
+      vendorRenderNav();
+      vendorRenderCta();
+      vendorMostrarTelaSelecao();
+    } else {
+      // Usuário de loja: acesso direto e exclusivo à própria loja, sem tela de seleção
+      const minhaLojaId = perfilUsuario.lojaId;
+      if (!minhaLojaId || !VENDOR_LOJAS.find(l => l.key === minhaLojaId)) {
+        toast('⚠️','Loja não identificada','Seu perfil não possui uma loja válida configurada.');
+        return;
+      }
+      document.getElementById('vendorPage').classList.add('open');
+      vendorAbrirPagina(minhaLojaId);
     }
-    const senha = document.getElementById('vendorSenhaInput').value;
-    const senhaCorreta = SENHAS_LOJA[vendorLojaSelecionadaLogin] || '';
-    if (!senha || senha !== senhaCorreta) {
-      errMsg.textContent = 'Senha incorreta para esta loja.';
-      errEl.classList.add('show');
-      document.getElementById('vendorSenhaInput').value = '';
-      document.getElementById('vendorSenhaInput').focus();
-      return;
-    }
-    errEl.classList.remove('show');
-    document.getElementById('vendorLoginScreen').classList.remove('open');
-    vendorLojasDesbloqueadas.add(vendorLojaSelecionadaLogin);
-    vendorAbrirPagina(vendorLojaSelecionadaLogin);
+  }
+
+  function vendorMostrarTelaSelecao() {
+    document.getElementById('vendorSelectLojaScreen').style.display = 'flex';
+    document.getElementById('vendorPatientsSection').style.display = 'none';
+    document.getElementById('vendorLojaAtualBadge').textContent = 'Selecione uma loja';
   }
 
   function vendorAbrirPagina(lojaKey) {
@@ -7126,16 +7202,16 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function vendorRenderNav() {
     const nav = document.getElementById('vendorNavLojas');
     if (!nav) return;
-    nav.innerHTML = VENDOR_LOJAS.map(l => {
+    const ehMaster = perfilUsuario && perfilUsuario.role === 'master';
+    const lojasVisiveis = ehMaster ? VENDOR_LOJAS : VENDOR_LOJAS.filter(l => l.key === perfilUsuario.lojaId);
+    nav.innerHTML = lojasVisiveis.map(l => {
       const count = vendorContarReceitas(l.key);
-      const desbloqueada = vendorLojasDesbloqueadas.has(l.key);
       const ativa = vendorLojaAtiva === l.key;
-      const lockIcon = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;opacity:0.4;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
       return `
         <button class="vendor-nav-item ${ativa ? 'active' : ''}" onclick="vendorClicarLoja('${l.key}')">
           <span class="vn-dot" style="background:${l.dot};"></span>
           ${l.label}
-          ${desbloqueada ? `<span class="vn-count">${count}</span>` : lockIcon}
+          <span class="vn-count">${count}</span>
         </button>`;
     }).join('');
   }
@@ -7143,7 +7219,9 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function vendorRenderCta() {
     const cta = document.getElementById('vendorLojasCta');
     if (!cta) return;
-    cta.innerHTML = VENDOR_LOJAS.map(l => `
+    const ehMaster = perfilUsuario && perfilUsuario.role === 'master';
+    const lojasVisiveis = ehMaster ? VENDOR_LOJAS : VENDOR_LOJAS.filter(l => l.key === perfilUsuario.lojaId);
+    cta.innerHTML = lojasVisiveis.map(l => `
       <button class="vendor-cta-btn" onclick="vendorClicarLoja('${l.key}')" style="border-color:${l.dot}55;color:${l.dot};">
         <span style="width:8px;height:8px;border-radius:50%;background:${l.dot};display:inline-block;flex-shrink:0;"></span>
         ${l.label}
@@ -7152,53 +7230,22 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   function vendorContarReceitas(lojaKey) {
     return agendamentos.filter(a => {
-      if (!a.loja) return false;
-      if (a.loja !== lojaKey && a.loja !== 'trafego-' + lojaKey) return false;
+      if (a.lojaId !== lojaKey) return false;
       const dados = medDados[a.id];
       return (dados && dados.receita && (dados.receita.imgs && dados.receita.imgs.length > 0 || dados.receita.doc));
     }).length;
   }
 
   function vendorClicarLoja(lojaKey) {
-    if (vendorLojasDesbloqueadas.has(lojaKey)) {
-      vendorLojaAtiva = lojaKey;
-      vendorRenderNav();
-      vendorMostrarLoja(lojaKey);
-    } else {
-      vendorLojaPendenteTroca = lojaKey;
-      const lojaInfo = VENDOR_LOJAS.find(l => l.key === lojaKey);
-      document.getElementById('vendorTrocaNome').textContent = lojaInfo ? lojaInfo.label : lojaKey;
-      document.getElementById('vendorTrocaSenha').value = '';
-      document.getElementById('vendorTrocaError').textContent = '';
-      const modal = document.getElementById('vendorTrocaLojaModal');
-      modal.style.display = 'flex';
-      setTimeout(() => document.getElementById('vendorTrocaSenha').focus(), 80);
-    }
-  }
-
-  function vendorFecharTroca() {
-    document.getElementById('vendorTrocaLojaModal').style.display = 'none';
-    vendorLojaPendenteTroca = null;
-  }
-
-  function vendorConfirmarTroca() {
-    const senha = document.getElementById('vendorTrocaSenha').value;
-    const errEl = document.getElementById('vendorTrocaError');
-    const lojaKey = vendorLojaPendenteTroca;
-    const senhaCorreta = SENHAS_LOJA[lojaKey] || '';
-    if (!senha || senha !== senhaCorreta) {
-      errEl.textContent = 'Senha incorreta para esta loja.';
-      document.getElementById('vendorTrocaSenha').value = '';
-      document.getElementById('vendorTrocaSenha').focus();
+    // Permissão: master pode abrir qualquer loja; usuário de loja só pode abrir a própria
+    const ehMaster = perfilUsuario && perfilUsuario.role === 'master';
+    if (!ehMaster && perfilUsuario.lojaId !== lojaKey) {
+      toast('🔒','Acesso restrito','Você só pode visualizar os pacientes da sua própria loja.');
       return;
     }
-    errEl.textContent = '';
-    document.getElementById('vendorTrocaLojaModal').style.display = 'none';
-    vendorLojasDesbloqueadas.add(lojaKey);
     vendorLojaAtiva = lojaKey;
     vendorRenderNav();
     vendorMostrarLoja(lojaKey);
-    vendorLojaPendenteTroca = null;
   }
 
   function vendorMostrarLoja(lojaKey) {
@@ -7221,8 +7268,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const lojaKey = vendorLojaAtiva;
 
     const pacientes = agendamentos.filter(a => {
-      if (!a.loja) return false;
-      if (a.loja !== lojaKey && a.loja !== 'trafego-' + lojaKey) return false;
+      if (a.lojaId !== lojaKey) return false;
       if (busca && !a.nome.toLowerCase().includes(busca)) return false;
       return true;
     });
@@ -7245,8 +7291,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function vendorPacienteTemReceita(agId) {
     const dados = medDados[agId];
     if (!dados) return false;
-    // considera qualquer tipo de documento salvo
-    return ['receita','receita2','prontuario','diagnostico','atestado'].some(t =>
+    // considera apenas receita (Dra. Andrea ou Dr. Edson) — o que é exibido no portal do vendedor
+    return ['receita','receita2'].some(t =>
       dados[t] && ((dados[t].imgs && dados[t].imgs.length > 0) || dados[t].doc)
     );
   }
@@ -7312,6 +7358,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         '<hr class="rx-sep">' +
         (f.tipo ? '<span class="rx-tipo">' + escHtml(f.tipo) + '</span>' : '') +
         (f.validade ? '<div class="rx-validade">Validade: ' + escHtml(f.validade) + '</div>' : '') +
+        (f.obs ? '<div class="rx-validade" style="margin-top:4px;">Recomendações: ' + escHtml(f.obs) + '</div>' : '') +
         '</div>' +
         '<div style="margin-top:6px;">' +
         '<button onclick="vendorImprimirReceita(\'' + ag.id + '\')" style="background:#1a2060;color:#fff;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;">🖨️ Imprimir Receita Dra. Andrea</button>' +
@@ -7337,15 +7384,14 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         '</div>';
     }
 
-    // ── Arquivos por tipo ─────────────────────────────────
-    var arquivosReceita    = _vendorSecaoArquivos(dados, 'receita',    '📋 Receita — Arquivos');
-    var arquivosProntuario = _vendorSecaoArquivos(dados, 'prontuario', '📄 Prontuário — Arquivos');
-    var arquivosDiagnostico= _vendorSecaoArquivos(dados, 'diagnostico','🔍 Diagnóstico — Arquivos');
-    var arquivosAtestado   = _vendorSecaoArquivos(dados, 'atestado',   '📝 Atestado — Arquivos');
+    // ── Apenas arquivos da RECEITA (grau + recomendações). ──────
+    // Prontuário, diagnóstico (CID) e atestado são informações médicas
+    // restritas ao médico e NÃO são exibidas no Portal do Vendedor.
+    var arquivosReceita = _vendorSecaoArquivos(dados, 'receita', '📋 Receita — Arquivos');
 
-    var temAlgo = rxDigitalHtml || rx2DigitalHtml || arquivosReceita || arquivosProntuario || arquivosDiagnostico || arquivosAtestado;
+    var temAlgo = rxDigitalHtml || rx2DigitalHtml || arquivosReceita;
 
-    var semRxHtml = '<div class="vpc-no-rx"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;display:block;margin:0 auto 6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Ainda sem documentos cadastrados</div>';
+    var semRxHtml = '<div class="vpc-no-rx"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;display:block;margin:0 auto 6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Ainda sem receita cadastrada</div>';
 
     return '<div class="vendor-patient-card">' +
       '<div class="vpc-header">' +
@@ -7354,7 +7400,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       '<div class="vpc-name">' + escHtml(ag.nome) + '</div>' +
       '<div class="vpc-meta">' + escHtml(ag.exame||'Consulta') + ' &middot; ' + formatarData(ag.data) + ' ' + ag.horario + '</div>' +
       '</div></div>' +
-      '<div class="vpc-body">' + (temAlgo ? (rxDigitalHtml + rx2DigitalHtml + arquivosReceita + arquivosProntuario + arquivosDiagnostico + arquivosAtestado) : semRxHtml) + '</div>' +
+      '<div class="vpc-body">' + (temAlgo ? (rxDigitalHtml + rx2DigitalHtml + arquivosReceita) : semRxHtml) + '</div>' +
       '</div>';
   }
 
@@ -7516,65 +7562,6 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 <!-- ══════════════════════════════════════════════════
      PORTAL DE RECEITAS — VENDEDORES
 ══════════════════════════════════════════════════ -->
-
-<!-- LOGIN MODAL VENDEDOR -->
-<div id="vendorLoginScreen">
-  <div class="vendor-login-card">
-    <div class="vendor-login-header">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
-        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-      </svg>
-      <h2>Portal de Receitas</h2>
-      <p>Acesso exclusivo para vendedores das lojas</p>
-    </div>
-    <div class="vendor-login-body">
-      <div class="vendor-login-error" id="vendorLoginError">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span id="vendorLoginErrorMsg">Senha incorreta para esta loja.</span>
-      </div>
-
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-hint);margin-bottom:8px;">Selecione sua loja</div>
-      <div class="vendor-loja-grid" id="vendorLojaGrid">
-        <!-- gerado por JS -->
-      </div>
-
-      <div class="form-group">
-        <label for="vendorSenhaInput">Senha de Administrador da Loja</label>
-        <div class="input-eye-wrap">
-          <input type="password" id="vendorSenhaInput" placeholder="Senha da loja selecionada" autocomplete="off"
-            onkeydown="if(event.key==='Enter') vendorConfirmarLogin()">
-          <button class="btn-eye" type="button" onclick="toggleEye('vendorSenhaInput',this)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </div>
-      <button class="btn-auth" style="background:#0E7490;" onclick="vendorConfirmarLogin()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Acessar receitas
-      </button>
-      <div style="margin-top:12px;text-align:center;">
-        <button onclick="vendorFecharLogin()" style="background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;font-family:var(--font);">Cancelar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL SENHA PARA TROCAR LOJA (inline no portal) -->
-<div id="vendorTrocaLojaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:8200;align-items:center;justify-content:center;padding:1rem;">
-  <div style="background:var(--surface);border-radius:var(--r-lg);padding:24px;width:320px;max-width:92vw;box-shadow:0 16px 48px rgba(0,0,0,0.18);animation:slideDown 0.15s ease;">
-    <h3 style="font-size:14px;font-weight:700;margin-bottom:4px;">🔐 Autenticar para <span id="vendorTrocaNome" style="color:#0369A1;"></span></h3>
-    <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">Insira a senha de administrador desta loja para visualizar as receitas.</p>
-    <input type="password" id="vendorTrocaSenha" placeholder="Senha de admin da loja"
-      style="width:100%;padding:9px 12px;border:1.5px solid var(--border-strong);border-radius:var(--r);font-size:13px;font-family:var(--font);background:var(--surface2);color:var(--text);margin-bottom:5px;"
-      onkeydown="if(event.key==='Enter') vendorConfirmarTroca()">
-    <div id="vendorTrocaError" style="font-size:12px;color:var(--red);min-height:16px;margin-bottom:10px;"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button onclick="vendorFecharTroca()" style="padding:7px 16px;border-radius:var(--r);border:1px solid var(--border-strong);background:none;color:var(--text-muted);font-size:12px;font-family:var(--font);cursor:pointer;">Cancelar</button>
-      <button onclick="vendorConfirmarTroca()" style="padding:7px 16px;border-radius:var(--r);border:none;background:#0E7490;color:#fff;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;">Confirmar</button>
-    </div>
-  </div>
-</div>
 
 <!-- PÁGINA PORTAL VENDEDOR -->
 <div id="vendorPage">
