@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel de Chamadas — Clínica Visão Perfeita</title>
+<title>PAINEL DE CHAMADAS — CLÍNICA VISÃO PERFEITA</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
@@ -44,19 +44,14 @@
 </head>
 <body>
   <div class="logo-bar">
-    <h1>📋 Clínica Visão Perfeita</h1>
+    <h1>📋 CLÍNICA VISÃO PERFEITA — Painel de Chamadas</h1>
     <div style="display:flex;align-items:center;gap:16px;">
       <span class="status-conn offline" id="connStatus">● Conectando...</span>
       <div class="clock" id="clock2">--:--:--</div>
     </div>
   </div>
   <div class="estado-aguardando" id="eAguardando">
-    <div class="icon-wrap">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-      </svg>
-    </div>
+    <div class="icon-wrap"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
     <h2>Aguardando chamada...</h2>
     <p>Sua vez será exibida aqui</p>
   </div>
@@ -79,81 +74,85 @@
   function tick(){const n=new Date();document.getElementById('clock2').textContent=n.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
   tick();setInterval(tick,1000);
 
-  firebase.initializeApp({
-    apiKey:"AIzaSyDEl8iA89RQLD75WEtUnE2cGtRQam6kI8M",
-    authDomain:"clinicaparticular.firebaseapp.com",
-    databaseURL:"https://clinicaparticular-default-rtdb.firebaseio.com",
-    projectId:"clinicaparticular",
-    storageBucket:"clinicaparticular.firebasestorage.app",
-    messagingSenderId:"640766289975",
-    appId:"1:640766289975:web:ed63707711b46e051bf7b2"
-  });
-
+  firebase.initializeApp({apiKey:"AIzaSyDEl8iA89RQLD75WEtUnE2cGtRQam6kI8M",authDomain:"clinicaparticular.firebaseapp.com",databaseURL:"https://clinicaparticular-default-rtdb.firebaseio.com",projectId:"clinicaparticular",storageBucket:"clinicaparticular.firebasestorage.app",messagingSenderId:"640766289975",appId:"1:640766289975:web:ed63707711b46e051bf7b2"});
   const db = firebase.database();
+
+  // Painel único da clínica: escuta a fila de chamadas de TODAS as lojas ao mesmo tempo,
+  // já que é uma única TV no consultório da Dra. Andrea, vista por pacientes de qualquer loja.
+  const LOJAS_IDS = ['loja1','loja2','loja3','loja4'];
+
   db.ref('.info/connected').on('value', snap => {
     const el = document.getElementById('connStatus');
-    if (snap.val()) { el.textContent='● Online'; el.className='status-conn online'; }
-    else { el.textContent='● Offline'; el.className='status-conn offline'; }
+    if (snap.val()) { el.textContent = '● Online'; el.className = 'status-conn online'; }
+    else { el.textContent = '● Offline'; el.className = 'status-conn offline'; }
   });
 
-  let audioCtx=null, chamandoInterval=null, nomeAtual='', ultimoTs=0, autoLimparTimer=null;
+  let audioCtx=null, chamandoInterval=null, nomeAtual='', autoLimparTimer=null;
+  const ultimosTs = {}; // último timestamp processado, por loja — evita repetir a mesma chamada
 
-  function getAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+  function getAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
   function tocaSom(){
     try{
       const ctx=getAudio();
       const toques=[{freq:880,inicio:0,dur:0.18,vol:0.5},{freq:1100,inicio:0.22,dur:0.18,vol:0.5},{freq:880,inicio:0.44,dur:0.28,vol:0.4}];
       toques.forEach(t=>{
-        const osc=ctx.createOscillator(),gain=ctx.createGain();
-        osc.connect(gain);gain.connect(ctx.destination);
-        osc.type='sine';osc.frequency.setValueAtTime(t.freq,ctx.currentTime+t.inicio);
-        gain.gain.setValueAtTime(0,ctx.currentTime+t.inicio);
-        gain.gain.linearRampToValueAtTime(t.vol,ctx.currentTime+t.inicio+0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t.inicio+t.dur);
-        osc.start(ctx.currentTime+t.inicio);osc.stop(ctx.currentTime+t.inicio+t.dur+0.05);
+        const osc=ctx.createOscillator(), gain=ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination); osc.type='sine';
+        osc.frequency.setValueAtTime(t.freq, ctx.currentTime+t.inicio);
+        gain.gain.setValueAtTime(0, ctx.currentTime+t.inicio);
+        gain.gain.linearRampToValueAtTime(t.vol, ctx.currentTime+t.inicio+0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+t.inicio+t.dur);
+        osc.start(ctx.currentTime+t.inicio); osc.stop(ctx.currentTime+t.inicio+t.dur+0.05);
       });
-    }catch(e){console.warn('Audio',e);}
+    }catch(e){ console.warn('Audio', e); }
   }
 
-  function mostrarChamada(nome,exame){
-    nomeAtual=nome;
-    document.getElementById('pcNome').textContent=nome;
-    document.getElementById('pcExame').textContent=exame||'Consulta';
-    document.getElementById('eAguardando').style.display='none';
+  function mostrarChamada(nome, exame){
+    nomeAtual = nome;
+    document.getElementById('pcNome').textContent = nome;
+    document.getElementById('pcExame').textContent = exame || 'Consulta';
+    document.getElementById('eAguardando').style.display = 'none';
     document.getElementById('eAtendimento').classList.remove('ativo');
     document.getElementById('eChamando').classList.add('ativo');
     tocaSom();
-    if(chamandoInterval)clearInterval(chamandoInterval);
-    chamandoInterval=setInterval(tocaSom,6000);
-    if(autoLimparTimer)clearTimeout(autoLimparTimer);
-    autoLimparTimer=setTimeout(mostrarAguardando,3*60*1000);
+    if (chamandoInterval) clearInterval(chamandoInterval);
+    chamandoInterval = setInterval(tocaSom, 6000);
+    if (autoLimparTimer) clearTimeout(autoLimparTimer);
+    autoLimparTimer = setTimeout(mostrarAguardando, 3*60*1000);
   }
-
   function mostrarAtendimento(nome){
-    if(chamandoInterval){clearInterval(chamandoInterval);chamandoInterval=null;}
-    if(autoLimparTimer){clearTimeout(autoLimparTimer);autoLimparTimer=null;}
-    document.getElementById('pcNomeAtend').textContent=nome||nomeAtual||'—';
-    document.getElementById('eAguardando').style.display='none';
+    if (chamandoInterval) { clearInterval(chamandoInterval); chamandoInterval = null; }
+    if (autoLimparTimer)  { clearTimeout(autoLimparTimer); autoLimparTimer = null; }
+    document.getElementById('pcNomeAtend').textContent = nome || nomeAtual || '—';
+    document.getElementById('eAguardando').style.display = 'none';
     document.getElementById('eChamando').classList.remove('ativo');
     document.getElementById('eAtendimento').classList.add('ativo');
+    setTimeout(mostrarAguardando, 5000);
   }
-
   function mostrarAguardando(){
-    if(chamandoInterval){clearInterval(chamandoInterval);chamandoInterval=null;}
-    if(autoLimparTimer){clearTimeout(autoLimparTimer);autoLimparTimer=null;}
-    document.getElementById('eAguardando').style.display='';
+    if (chamandoInterval) { clearInterval(chamandoInterval); chamandoInterval = null; }
+    if (autoLimparTimer)  { clearTimeout(autoLimparTimer); autoLimparTimer = null; }
+    document.getElementById('eAguardando').style.display = '';
     document.getElementById('eChamando').classList.remove('ativo');
     document.getElementById('eAtendimento').classList.remove('ativo');
   }
 
-  db.ref('agenda_l2/painel').on('value', snap => {
-    if(!snap.exists())return;
-    const d=snap.val();
-    if(!d||!d.ts)return;
-    if(d.ts===ultimoTs)return;
-    ultimoTs=d.ts;
-    if(d.status==='chamando'){mostrarChamada(d.nome,d.exame);}
-    else if(d.status==='parar'){mostrarAtendimento(d.nome||nomeAtual);}
+  // Escuta as 4 lojas. Não importa de qual loja o paciente é — a Dra. Andrea (master)
+  // chama pelo Painel Médico e esta TV única exibe, independentemente da origem.
+  LOJAS_IDS.forEach(lid => {
+    ultimosTs[lid] = 0;
+    db.ref('lojas/' + lid + '/painel').on('value', snap => {
+      if (!snap.exists()) return;
+      const d = snap.val();
+      if (!d || !d.ts) return;
+      if (d.ts === ultimosTs[lid]) return;
+      ultimosTs[lid] = d.ts;
+      if (d.status === 'chamando') {
+        mostrarChamada(d.nome, d.exame);
+      } else if (d.status === 'parar') {
+        mostrarAtendimento(d.nome || nomeAtual);
+      }
+    });
   });
 </script>
 </body>
