@@ -40,9 +40,18 @@
   .atend-nome{font-size:clamp(20px,3vw,32px);color:rgba(255,255,255,0.7);font-weight:500;}
   @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
   .estado-aguardando,.estado-chamando,.estado-atendimento{position:absolute;}
+  #overlayAtivarSom{position:fixed;inset:0;background:rgba(15,23,42,0.97);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;cursor:pointer;}
+  #overlayAtivarSom .ic{font-size:64px;}
+  #overlayAtivarSom h2{font-size:24px;font-weight:700;}
+  #overlayAtivarSom p{font-size:14px;color:var(--muted);}
 </style>
 </head>
 <body>
+  <div id="overlayAtivarSom" onclick="ativarSom()">
+    <div class="ic">🔊</div>
+    <h2>Toque na tela para ativar o som</h2>
+    <p>Necessário apenas uma vez, ao ligar a TV</p>
+  </div>
   <div class="logo-bar">
     <h1>📋 CLÍNICA VISÃO PERFEITA — Painel de Chamadas</h1>
     <div style="display:flex;align-items:center;gap:16px;">
@@ -87,24 +96,43 @@
     else { el.textContent = '● Offline'; el.className = 'status-conn offline'; }
   });
 
-  let audioCtx=null, chamandoInterval=null, nomeAtual='', autoLimparTimer=null;
+  let chamandoInterval=null, nomeAtual='', autoLimparTimer=null;
   const ultimosTs = {}; // último timestamp processado, por loja — evita repetir a mesma chamada
 
-  function getAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
-  function tocaSom(){
-    try{
-      const ctx=getAudio();
-      const toques=[{freq:880,inicio:0,dur:0.18,vol:0.5},{freq:1100,inicio:0.22,dur:0.18,vol:0.5},{freq:880,inicio:0.44,dur:0.28,vol:0.4}];
-      toques.forEach(t=>{
-        const osc=ctx.createOscillator(), gain=ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination); osc.type='sine';
-        osc.frequency.setValueAtTime(t.freq, ctx.currentTime+t.inicio);
-        gain.gain.setValueAtTime(0, ctx.currentTime+t.inicio);
-        gain.gain.linearRampToValueAtTime(t.vol, ctx.currentTime+t.inicio+0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+t.inicio+t.dur);
-        osc.start(ctx.currentTime+t.inicio); osc.stop(ctx.currentTime+t.inicio+t.dur+0.05);
-      });
-    }catch(e){ console.warn('Audio', e); }
+  // ── Narração por voz (acessibilidade: pacientes com deficiência visual
+  // conseguem identificar pelo nome quando são chamados, não só visualmente) ──
+  let vozPreferida = null;
+  function carregarVozPtBr() {
+    const vozes = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+    vozPreferida = vozes.find(v => v.lang === 'pt-BR') || vozes.find(v => v.lang && v.lang.startsWith('pt')) || null;
+  }
+  if (window.speechSynthesis) {
+    carregarVozPtBr();
+    window.speechSynthesis.onvoiceschanged = carregarVozPtBr;
+  }
+  function narrarChamada(nome, exame){
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel(); // evita sobrepor falas se a anterior ainda não terminou
+    const texto = `Atenção. ${nome}, por favor, dirija-se ao consultório.`;
+    const fala = new SpeechSynthesisUtterance(texto);
+    fala.lang = 'pt-BR';
+    if (vozPreferida) fala.voice = vozPreferida;
+    fala.rate = 0.95;
+    fala.pitch = 1;
+    fala.volume = 1;
+    window.speechSynthesis.speak(fala);
+  }
+
+  // Alguns navegadores só liberam fala automática depois de uma interação do
+  // usuário com a página. Como a TV fica ligada sozinha, pedimos um toque
+  // único ao iniciar (some para sempre depois, sem precisar repetir).
+  function ativarSom(){
+    if (window.speechSynthesis) {
+      const teste = new SpeechSynthesisUtterance(' ');
+      teste.volume = 0;
+      window.speechSynthesis.speak(teste);
+    }
+    document.getElementById('overlayAtivarSom').style.display = 'none';
   }
 
   function mostrarChamada(nome, exame){
@@ -114,24 +142,28 @@
     document.getElementById('eAguardando').style.display = 'none';
     document.getElementById('eAtendimento').classList.remove('ativo');
     document.getElementById('eChamando').classList.add('ativo');
-    tocaSom();
+    narrarChamada(nome, exame);
     if (chamandoInterval) clearInterval(chamandoInterval);
-    chamandoInterval = setInterval(tocaSom, 6000);
-    if (autoLimparTimer) clearTimeout(autoLimparTimer);
-    autoLimparTimer = setTimeout(mostrarAguardando, 3*60*1000);
+    chamandoInterval = setInterval(() => narrarChamada(nome, exame), 10000);
+    // Sem timeout automático: a chamada só some quando a Dra. mudar o status
+    // (clicar em "Atender" ou chamar outro paciente), nunca sozinha.
+    if (autoLimparTimer) { clearTimeout(autoLimparTimer); autoLimparTimer = null; }
   }
   function mostrarAtendimento(nome){
     if (chamandoInterval) { clearInterval(chamandoInterval); chamandoInterval = null; }
     if (autoLimparTimer)  { clearTimeout(autoLimparTimer); autoLimparTimer = null; }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     document.getElementById('pcNomeAtend').textContent = nome || nomeAtual || '—';
     document.getElementById('eAguardando').style.display = 'none';
     document.getElementById('eChamando').classList.remove('ativo');
     document.getElementById('eAtendimento').classList.add('ativo');
-    setTimeout(mostrarAguardando, 5000);
+    // Fica em "Em atendimento" de forma permanente — só sai daqui quando
+    // a Dra. chamar o próximo paciente (mostrarChamada) de novo.
   }
   function mostrarAguardando(){
     if (chamandoInterval) { clearInterval(chamandoInterval); chamandoInterval = null; }
     if (autoLimparTimer)  { clearTimeout(autoLimparTimer); autoLimparTimer = null; }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     document.getElementById('eAguardando').style.display = '';
     document.getElementById('eChamando').classList.remove('ativo');
     document.getElementById('eAtendimento').classList.remove('ativo');
