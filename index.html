@@ -5473,7 +5473,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           nome:         ag.nome,
           exame:        ag.exame || 'Consulta',
           horario:      ag.horario || '',
-          loja:         ag.loja || '',
+          loja:         ag.lojaId || '',
           chegadaTs:    Date.now(),
           situacaoFila: 'aguardando'
         });
@@ -5514,7 +5514,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   function lojaBadge(ag, sfx) {
     sfx = sfx || '';
-    const loja = ag.loja ? (LOJAS[ag.loja] || null) : null;
+    const loja = ag.lojaId ? (LOJAS[ag.lojaId] || null) : null;
     const label = loja ? loja.label : '— Sem loja';
     const cls   = loja ? loja.cls   : '';
     const dot   = loja ? loja.dot   : '#9CA3AF';
@@ -5693,7 +5693,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
     if (busca) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(busca) || a.tel.includes(busca) || (a.exame||'').toLowerCase().includes(busca));
     if (filtrosAtivos.size > 0) filtrados = filtrados.filter(a => filtrosAtivos.has(a.situacao || 'agendado'));
-    if (filtrosLojaAtivos.size > 0) filtrados = filtrados.filter(a => filtrosLojaAtivos.has(a.loja || ''));
+    if (filtrosLojaAtivos.size > 0) filtrados = filtrados.filter(a => filtrosLojaAtivos.has(a.lojaId || ''));
     if (filtrosVendedorAtivos.size > 0) filtrados = filtrados.filter(a => filtrosVendedorAtivos.has(a.vendedor || ''));
     if (filtroLembrete) {
       filtrados = filtrados.filter(a => {
@@ -5874,7 +5874,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const busca = document.getElementById('busca').value.toLowerCase();
     if (busca) lista = lista.filter(a => a.nome.toLowerCase().includes(busca) || a.tel.includes(busca) || (a.exame||'').toLowerCase().includes(busca));
     if (filtrosAtivos.size > 0) lista = lista.filter(a => filtrosAtivos.has(a.situacao || 'agendado'));
-    if (filtrosLojaAtivos.size > 0) lista = lista.filter(a => filtrosLojaAtivos.has(a.loja || ''));
+    if (filtrosLojaAtivos.size > 0) lista = lista.filter(a => filtrosLojaAtivos.has(a.lojaId || ''));
     if (filtrosVendedorAtivos.size > 0) lista = lista.filter(a => filtrosVendedorAtivos.has(a.vendedor || ''));
     if (filtroLembrete) {
       lista = lista.filter(a => {
@@ -5890,7 +5890,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const SIT = { agendado:'Agendado', veio:'Veio na consulta', nao_veio:'Não veio', comprou:'Comprou o óculos', chamar:'Chamando', em_atendimento:'Em atendimento', patologia:'Patologia', nao_ligar:'Problema - não ligar' };
     const linhas = [
       ['Nome','Telefone','Exame / Consulta','Data Agendamento','Horário','Lembrete','Loja','Situação','Vendedor'],
-      ...lista.map(a => [ a.nome, a.tel, a.exame||'Não informado', formatarData(a.data), a.horario, a.lembreteEnviado ? 'Enviado' : 'Pendente', (a.loja ? (LOJAS[a.loja]||{label:a.loja}).label : ''), SIT[a.situacao||'agendado']||'Agendado', a.vendedor||'' ])
+      ...lista.map(a => [ a.nome, a.tel, a.exame||'Não informado', formatarData(a.data), a.horario, a.lembreteEnviado ? 'Enviado' : 'Pendente', (a.lojaId ? (LOJAS[a.lojaId]||{label:a.lojaId}).label : ''), SIT[a.situacao||'agendado']||'Agendado', a.vendedor||'' ])
     ];
     const csv = linhas.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
     const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
