@@ -3059,7 +3059,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             <button onclick="masterFiltrarTodasLojas()" id="btnTodasLojas"
               style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid rgba(165,180,252,0.4);background:rgba(165,180,252,0.12);color:#a5b4fc;cursor:pointer;font-weight:600;font-family:var(--font);transition:background .15s;"
-              onmouseover="this.style.background='rgba(165,180,252,0.25)'" onmouseout="this.style.background=masterModoConsolidado?'rgba(165,180,252,0.3)':'rgba(165,180,252,0.12)'">
+              onmouseover="this.style.background='rgba(165,180,252,0.25)'" onmouseout="this.style.background='rgba(165,180,252,0.12)'">
               🗂️ Todos os pacientes
             </button>
             <span style="font-size:10px;color:rgba(165,180,252,0.5);">|</span>
@@ -4571,24 +4571,15 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     return true;
   }
 
-  // ── BADGE DE LOJA ATIVA (MASTER) ─────────────────────────
+  // lojaAtiva é mantida apenas como fallback interno para chamadas de
+  // painel/fila (quando, por algum motivo, um registro antigo não tiver
+  // lojaId). Não é mais usada para decidir onde gravar dados — isso agora
+  // é automático por paciente. O dropdown "Escrevendo em loja X" foi removido.
   function renderBadgeMaster() {
     const wrap = document.getElementById('masterLojaWrap');
-    if (!wrap) return;
-    if (!perfilUsuario || perfilUsuario.role !== 'master') { wrap.style.display='none'; return; }
-    wrap.style.display = 'flex';
-    const lojaInfo = LOJAS[lojaAtiva] || { label: lojaAtiva };
-    wrap.innerHTML = `
-      <span style="font-size:10px;color:var(--text-hint);font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Escrevendo em</span>
-      <select id="masterLojaSelect" onchange="masterTrocarLoja(this.value)"
-        style="font-size:12px;font-family:var(--font);border:1px solid var(--border-strong);border-radius:var(--r);padding:3px 7px;background:var(--surface2);color:var(--text);cursor:pointer;">
-        ${LOJAS_IDS.map(id => `<option value="${id}" ${id===lojaAtiva?'selected':''}>${LOJAS[id]?LOJAS[id].label:id}</option>`).join('')}
-      </select>`;
+    if (wrap) wrap.style.display = 'none';
   }
-  function masterTrocarLoja(lojaId) {
-    lojaAtiva = lojaId;
-    toast('🏪','Loja de escrita alterada', LOJAS[lojaId]?LOJAS[lojaId].label:lojaId);
-  }
+  function masterTrocarLoja(lojaId) { lojaAtiva = lojaId; }
 
   auth.onAuthStateChanged(async user => {
     if (user) {
@@ -4682,9 +4673,13 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
   }
 
-  // ── SALVAR — escreve apenas na loja ativa ─────────────────
+  // ── SALVAR — cada registro é gravado na loja real do paciente ─
+  // (identificada automaticamente por a.lojaId, que já vem do agendamento
+  // original). O master nunca precisa selecionar "loja de escrita": ele
+  // grava em todas as lojas envolvidas de uma vez, cada uma na sua própria
+  // gaveta do Firebase. Usuário de loja única só grava na sua própria loja.
   async function salvar() {
-    if (!usuarioLogado || !lojaAtiva) return;
+    if (!usuarioLogado || !perfilUsuario) return;
     try {
       const medDadosParaSalvar = {};
       Object.entries(medDados).forEach(([agId, tiposDados]) => {
@@ -4697,15 +4692,21 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           }
         });
       });
-      // Grava apenas agendamentos da loja ativa
-      const agDaLoja = agendamentos.filter(a => (a.lojaId || lojaAtiva) === lojaAtiva);
-      const notifDaLoja = notificacoes.filter(n => {
-        const ag = agendamentos.find(a => a.id === n.agId);
-        return !ag || (ag.lojaId || lojaAtiva) === lojaAtiva;
-      });
-      const medDaLoja = {};
-      agDaLoja.forEach(a => { if (medDadosParaSalvar[a.id]) medDaLoja[a.id] = medDadosParaSalvar[a.id]; });
-      await db.ref(dbPath(lojaAtiva)).set({ agendamentos: agDaLoja, notificacoes: notifDaLoja, medDados: medDaLoja, ts: Date.now() });
+
+      // Lojas a gravar: master grava em todas (cada uma recebe só os
+      // próprios pacientes); usuário de loja única grava só na sua.
+      const lojasAlvo = (perfilUsuario.role === 'master') ? LOJAS_IDS : [perfilUsuario.lojaId];
+
+      for (const lojaId of lojasAlvo) {
+        const agDaLoja = agendamentos.filter(a => (a.lojaId || lojaId) === lojaId);
+        const notifDaLoja = notificacoes.filter(n => {
+          const ag = agendamentos.find(a => a.id === n.agId);
+          return !ag || (ag.lojaId || lojaId) === lojaId;
+        });
+        const medDaLoja = {};
+        agDaLoja.forEach(a => { if (medDadosParaSalvar[a.id]) medDaLoja[a.id] = medDadosParaSalvar[a.id]; });
+        await db.ref(dbPath(lojaId)).set({ agendamentos: agDaLoja, notificacoes: notifDaLoja, medDados: medDaLoja, ts: Date.now() });
+      }
     }
     catch(e) { console.warn('Firebase write error', e); toast('\u26a0\ufe0f','Erro ao salvar','Verifique sua conex\u00e3o.'); }
   }
@@ -5680,7 +5681,14 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function toggleFiltro(sit, btn) { filtrosAtivos.has(sit) ? filtrosAtivos.delete(sit) : filtrosAtivos.add(sit); btn.classList.toggle('active'); renderTabela(); }
   function toggleFiltroLoja(loja, btn) { filtrosLojaAtivos.has(loja) ? filtrosLojaAtivos.delete(loja) : filtrosLojaAtivos.add(loja); btn.classList.toggle('active'); renderTabela(); }
   function toggleFiltroVendedor(v, btn) { filtrosVendedorAtivos.has(v) ? filtrosVendedorAtivos.delete(v) : filtrosVendedorAtivos.add(v); btn.classList.toggle('active'); renderTabela(); }
-  function limparFiltros() { filtrosAtivos.clear(); filtrosLojaAtivos.clear(); filtrosVendedorAtivos.clear(); document.querySelectorAll('.ftag').forEach(b => b.classList.remove('active')); setFiltroLembrete(null); renderTabela(); }
+  function limparFiltros() {
+    filtrosAtivos.clear(); filtrosLojaAtivos.clear(); filtrosVendedorAtivos.clear();
+    document.querySelectorAll('.ftag').forEach(b => b.classList.remove('active'));
+    setFiltroLembrete(null);
+    filtroDia = null; masterFiltroDia = null;
+    if (document.getElementById('masterFiltroData')) document.getElementById('masterFiltroData').value = '';
+    renderCal(); renderTabela();
+  }
 
   function toggleFiltroLembrete(e) {
     e.stopPropagation();
@@ -5711,14 +5719,13 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
     let filtrados = agendamentos;
 
-    // Master: filtro consolidado por data (mostra todas as lojas ordenadas por horário)
+    // Master: vê pacientes de todas as lojas por padrão (consolidado).
+    // Pode restringir usando os filtros L1/L2/L3/L4 ou o filtro de data.
     if (perfilUsuario && perfilUsuario.role === 'master') {
       masterRenderResumo();
-      if (masterModoConsolidado) {
-        // Não filtrar por loja — mostra todas
-      } else if (!filtrosLojaAtivos.size) {
-        // Se não há filtro de loja e não está em modo consolidado, mostra apenas a loja ativa
-        filtrados = filtrados.filter(a => a.lojaId === lojaAtiva);
+      // Sem filtro de loja específico → mostra todas (consolidado)
+      if (filtrosLojaAtivos.size > 0) {
+        filtrados = filtrados.filter(a => filtrosLojaAtivos.has(a.loja || ''));
       }
       if (masterFiltroDia) filtrados = filtrados.filter(a => a.data === masterFiltroDia);
     } else if (perfilUsuario && perfilUsuario.role === 'loja') {
@@ -5753,9 +5760,21 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       );
     }
 
-    const temFiltro = filtrosAtivos.size > 0 || filtrosLojaAtivos.size > 0 || filtrosVendedorAtivos.size > 0 || filtroLembrete;
+    // Contador de agendamentos — reage a TODOS os filtros (situação, loja,
+    // vendedor, lembrete e dia/calendário), incluindo o filtro de dia que
+    // antes não disparava o contador. Útil para relatórios rápidos do tipo
+    // "quantos agendamentos a Aline fez no dia X".
+    const diaAtivo = filtroDia || masterFiltroDia;
+    const temFiltro = filtrosAtivos.size > 0 || filtrosLojaAtivos.size > 0 || filtrosVendedorAtivos.size > 0 || filtroLembrete || !!diaAtivo;
     if (temFiltro) {
-      countEl.textContent = `${filtrados.length} resultado${filtrados.length !== 1 ? 's' : ''}`;
+      let label = `${filtrados.length} agendamento${filtrados.length !== 1 ? 's' : ''}`;
+      if (filtrosVendedorAtivos.size === 1) {
+        label += ` · ${[...filtrosVendedorAtivos][0]}`;
+      } else if (filtrosVendedorAtivos.size > 1) {
+        label += ` · ${filtrosVendedorAtivos.size} vendedores`;
+      }
+      if (diaAtivo) label += ` · ${formatarData(diaAtivo)}`;
+      countEl.textContent = label;
       countEl.classList.remove('hidden'); btnL.classList.remove('hidden');
     } else { countEl.classList.add('hidden'); btnL.classList.add('hidden'); }
 
@@ -6105,7 +6124,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function calHoje() { const h = new Date(); calAno = h.getFullYear(); calMesN = h.getMonth(); renderCal(); }
 
   // ── MASTER: VISÃO CONSOLIDADA ────────────────────────────
-  let masterModoConsolidado = false;
+  // A visão consolidada (todas as lojas) é sempre o padrão para o master.
+  // Estas funções servem apenas para os filtros opcionais de loja/data.
   let masterFiltroDia = null; // 'YYYY-MM-DD'
 
   function masterMostrarPainel() {
@@ -6128,11 +6148,9 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   }
 
   function masterFiltrarTodasLojas() {
-    masterModoConsolidado = !masterModoConsolidado;
-    const btn = document.getElementById('btnTodasLojas');
-    if (btn) btn.style.background = masterModoConsolidado ? 'rgba(165,180,252,0.3)' : 'rgba(165,180,252,0.12)';
-    // Limpar filtros de loja individuais quando ativa modo consolidado
-    if (masterModoConsolidado) { filtrosLojaAtivos.clear(); document.querySelectorAll('.ftag').forEach(b => { if (b.dataset.loja) b.classList.remove('active'); }); }
+    // Limpa filtros de loja individuais e de data — volta para a visão padrão (todas as lojas)
+    filtrosLojaAtivos.clear();
+    document.querySelectorAll('.ftag').forEach(b => { if (b.dataset.loja) b.classList.remove('active'); });
     masterFiltroDia = null;
     if (document.getElementById('masterFiltroData')) document.getElementById('masterFiltroData').value = '';
     renderTabela();
@@ -6140,9 +6158,6 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   function masterAplicarFiltroData(data) {
     masterFiltroDia = data || null;
-    masterModoConsolidado = true;
-    const btn = document.getElementById('btnTodasLojas');
-    if (btn) btn.style.background = 'rgba(165,180,252,0.3)';
     filtrosLojaAtivos.clear();
     document.querySelectorAll('.ftag').forEach(b => { if (b.dataset.loja) b.classList.remove('active'); });
     renderTabela();
@@ -6150,10 +6165,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   function masterLimparFiltro() {
     masterFiltroDia = null;
-    masterModoConsolidado = false;
     if (document.getElementById('masterFiltroData')) document.getElementById('masterFiltroData').value = '';
-    const btn = document.getElementById('btnTodasLojas');
-    if (btn) btn.style.background = 'rgba(165,180,252,0.12)';
     renderTabela();
   }
 
