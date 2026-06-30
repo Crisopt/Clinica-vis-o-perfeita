@@ -4442,19 +4442,15 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- MODAL SENHA ADMIN -->
+<!-- MODAL CONFIRMAÇÃO TROCA DE LOJA -->
 <div id="modalSenhaAdmin">
   <div class="senha-admin-box">
-    <h3>🔐 Confirmação necessária</h3>
-    <p id="modalSenhaAdminTextoTroca">Para mover <strong id="modalNomePaciente"></strong> de <span class="loja-destino" id="modalLojaOrigem"></span> para <span class="loja-destino" id="modalLojaDestino"></span>, insira a senha de administrador da <span id="modalLojaOrigemNome" style="font-weight:700"></span>.</p>
+    <h3>🔄 Confirmar alteração</h3>
+    <p id="modalSenhaAdminTextoTroca">Mover <strong id="modalNomePaciente"></strong> de <span class="loja-destino" id="modalLojaOrigem"></span> para <span class="loja-destino" id="modalLojaDestino"></span>?</p>
     <p id="modalSenhaAdminTextoAgendamento" style="display:none;font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:4px;">
       O paciente <strong id="modalAgNomePaciente"></strong> já possui agendamento em <strong id="modalAgLojaOrigemNome"></strong>
-      para <strong id="modalAgDataExistente"></strong>. Para cadastrar este novo agendamento em <strong id="modalAgLojaDestinoNome"></strong>,
-      insira a senha de administrador de <strong id="modalAgLojaOrigemNome2"></strong>.
+      para <strong id="modalAgDataExistente"></strong>. Deseja cadastrar este novo agendamento em <strong id="modalAgLojaDestinoNome"></strong> mesmo assim?
     </p>
-    <input type="password" class="senha-admin-input" id="senhaAdminInput" placeholder="Senha do administrador"
-      onkeydown="if(event.key==='Enter') { if(_pendingAgendamentoOutraLoja) confirmarAgendamentoOutraLoja(); else confirmarTrocaLoja(); }">
-    <div class="senha-admin-error" id="senhaAdminError"></div>
     <div class="senha-admin-actions">
       <button class="btn-admin-cancelar" onclick="fecharModalSenha()">Cancelar</button>
       <button class="btn-admin-confirmar" id="btnSenhaAdminConfirmar" onclick="confirmarTrocaLoja()">Confirmar</button>
@@ -4693,9 +4689,10 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         });
       });
 
-      // Lojas a gravar: master grava em todas (cada uma recebe só os
-      // próprios pacientes); usuário de loja única grava só na sua.
-      const lojasAlvo = (perfilUsuario.role === 'master') ? LOJAS_IDS : [perfilUsuario.lojaId];
+      // Lojas a gravar: qualquer acesso (loja ou master) grava em todas as
+      // lojas envolvidas — cada uma recebe só os próprios pacientes — já que
+      // agora qualquer usuário pode mover um paciente entre lojas livremente.
+      const lojasAlvo = LOJAS_IDS;
 
       for (const lojaId of lojasAlvo) {
         const agDaLoja = agendamentos.filter(a => (a.lojaId || lojaId) === lojaId);
@@ -4711,31 +4708,20 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     catch(e) { console.warn('Firebase write error', e); toast('\u26a0\ufe0f','Erro ao salvar','Verifique sua conex\u00e3o.'); }
   }
 
-  // ── CARREGAR — master lê todas as lojas, loja lê só a sua ─
+  // ── CARREGAR — qualquer acesso (loja ou master) lê todas as lojas ─
   async function carregarDados() {
     if (!usuarioLogado || !perfilUsuario) return;
     try {
-      if (perfilUsuario.role === 'master') {
-        const snaps = await Promise.all(LOJAS_IDS.map(lid => db.ref(dbPath(lid)).get()));
-        agendamentos = []; notificacoes = []; medDados = {};
-        snaps.forEach((snap, idx) => {
-          if (snap.exists()) {
-            const obj = snap.val(); const lid = LOJAS_IDS[idx];
-            agendamentos = agendamentos.concat((obj.agendamentos||[]).map(a => ({ ...a, lojaId: lid })));
-            notificacoes = notificacoes.concat(obj.notificacoes||[]);
-            Object.assign(medDados, obj.medDados||{});
-          }
-        });
-      } else {
-        const lid = perfilUsuario.lojaId;
-        const snap = await db.ref(dbPath(lid)).get();
+      const snaps = await Promise.all(LOJAS_IDS.map(lid => db.ref(dbPath(lid)).get()));
+      agendamentos = []; notificacoes = []; medDados = {};
+      snaps.forEach((snap, idx) => {
         if (snap.exists()) {
-          const obj = snap.val();
-          agendamentos = (obj.agendamentos||[]).map(a => ({ ...a, lojaId: lid }));
-          notificacoes = obj.notificacoes||[];
-          medDados = obj.medDados||{};
+          const obj = snap.val(); const lid = LOJAS_IDS[idx];
+          agendamentos = agendamentos.concat((obj.agendamentos||[]).map(a => ({ ...a, lojaId: lid })));
+          notificacoes = notificacoes.concat(obj.notificacoes||[]);
+          Object.assign(medDados, obj.medDados||{});
         }
-      }
+      });
     } catch(e) { console.warn('Firebase read error', e); }
   }
 
@@ -4747,7 +4733,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     if (escutandoFirebase) return;
     escutandoFirebase = true;
     primeiroSnapshot = true;
-    const lojasParaEscutar = perfilUsuario.role === 'master' ? LOJAS_IDS : [perfilUsuario.lojaId];
+    // Qualquer acesso (loja ou master) escuta todas as lojas — visão total de clientes.
+    const lojasParaEscutar = LOJAS_IDS;
     let snapshotCache = {};
     function reconstruirEstado() {
       agendamentos = []; notificacoes = []; medDados = {};
@@ -4876,30 +4863,15 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     document.getElementById('modalSenhaAdminTextoAgendamento').style.display = 'block';
     document.getElementById('modalAgNomePaciente').textContent = agExistente.nome;
     document.getElementById('modalAgLojaOrigemNome').textContent = (LOJAS[lojaOrigemId] && LOJAS[lojaOrigemId].label) || lojaOrigemId;
-    document.getElementById('modalAgLojaOrigemNome2').textContent = (LOJAS[lojaOrigemId] && LOJAS[lojaOrigemId].label) || lojaOrigemId;
     document.getElementById('modalAgLojaDestinoNome').textContent = (LOJAS[lojaDestinoId] && LOJAS[lojaDestinoId].label) || lojaDestinoId;
     document.getElementById('modalAgDataExistente').textContent = formatarData(agExistente.data) + ' às ' + agExistente.horario;
     const btn = document.getElementById('btnSenhaAdminConfirmar');
     btn.setAttribute('onclick', 'confirmarAgendamentoOutraLoja()');
-    document.getElementById('senhaAdminInput').value = '';
-    document.getElementById('senhaAdminError').textContent = '';
     document.getElementById('modalSenhaAdmin').classList.add('open');
-    setTimeout(() => document.getElementById('senhaAdminInput').focus(), 80);
   }
 
   async function confirmarAgendamentoOutraLoja() {
     if (!_pendingAgendamentoOutraLoja) return;
-    const senha = document.getElementById('senhaAdminInput').value;
-    const errEl = document.getElementById('senhaAdminError');
-    const { lojaOrigemId } = _pendingAgendamentoOutraLoja;
-    const senhaCorreta = SENHAS_LOJA[lojaOrigemId] || '';
-    if (!senhaCorreta || senha !== senhaCorreta) {
-      errEl.textContent = '❌ Senha incorreta.';
-      document.getElementById('senhaAdminInput').value = '';
-      document.getElementById('senhaAdminInput').focus();
-      return;
-    }
-    errEl.textContent = '';
     document.getElementById('modalSenhaAdmin').classList.remove('open');
     const { nome, tel, data, horario, exame, vendedor } = _pendingAgendamentoOutraLoja;
     _pendingAgendamentoOutraLoja = null;
@@ -5522,6 +5494,9 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   }
 
   // ── LOJAS ────────────────────────────────────────────────
+  // SENHAS_LOJA agora é usada apenas para autenticar o acesso às receitas de
+  // cada loja dentro do Portal de Receitas — Vendedores (documento particular
+  // de cada loja). Não é mais usada para alterar a loja de um agendamento.
   const SENHAS_LOJA = {
     'loja1':'teste1','loja2':'teste2','loja3':'teste3','loja4':'teste4',
     'trafego-loja1':'trafego1','trafego-loja2':'trafego2','trafego-loja3':'trafego3','trafego-loja4':'trafego4',
@@ -5641,11 +5616,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     document.getElementById('modalNomePaciente').textContent  = ag.nome;
     document.getElementById('modalLojaOrigem').textContent    = lojaOrigemInfo ? lojaOrigemInfo.label : '';
     document.getElementById('modalLojaDestino').textContent   = LOJAS[lojaChave].label;
-    document.getElementById('modalLojaOrigemNome').textContent = lojaOrigemInfo ? lojaOrigemInfo.label : '';
-    document.getElementById('senhaAdminInput').value = '';
-    document.getElementById('senhaAdminError').textContent = '';
     document.getElementById('modalSenhaAdmin').classList.add('open');
-    setTimeout(() => document.getElementById('senhaAdminInput').focus(), 80);
   }
   function fecharModalSenha() {
     document.getElementById('modalSenhaAdmin').classList.remove('open');
@@ -5653,13 +5624,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     _pendingAgendamentoOutraLoja = null;
   }
   async function confirmarTrocaLoja() {
-    const senha = document.getElementById('senhaAdminInput').value;
-    const errEl = document.getElementById('senhaAdminError');
-    const ag = agendamentos.find(a => a.id === _pendingLojaId);
-    const lojaOrigem = ag && ag.lojaId ? ag.lojaId : _pendingLojaChave;
-    const senhaCorreta = SENHAS_LOJA[lojaOrigem] || '';
-    if (!senhaCorreta || senha !== senhaCorreta) { errEl.textContent = '❌ Senha incorreta.'; document.getElementById('senhaAdminInput').value = ''; document.getElementById('senhaAdminInput').focus(); return; }
-    errEl.textContent = ''; document.getElementById('modalSenhaAdmin').classList.remove('open');
+    document.getElementById('modalSenhaAdmin').classList.remove('open');
     await aplicarTrocaLoja(_pendingLojaId, _pendingLojaChave);
   }
   async function confirmarTrocaLojaDirecto() { await aplicarTrocaLoja(_pendingLojaId, _pendingLojaChave); }
@@ -5719,19 +5684,12 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
     let filtrados = agendamentos;
 
-    // Master: vê pacientes de todas as lojas por padrão (consolidado).
-    // Pode restringir usando os filtros L1/L2/L3/L4 ou o filtro de data.
+    // Qualquer acesso (loja ou master) vê pacientes de todas as lojas por padrão
+    // (consolidado). Pode restringir usando os filtros L1/L2/L3/L4 ou o filtro de data.
     if (perfilUsuario && perfilUsuario.role === 'master') {
       masterRenderResumo();
-      // Sem filtro de loja específico → mostra todas (consolidado)
-      if (filtrosLojaAtivos.size > 0) {
-        filtrados = filtrados.filter(a => filtrosLojaAtivos.has(a.loja || ''));
-      }
-      if (masterFiltroDia) filtrados = filtrados.filter(a => a.data === masterFiltroDia);
-    } else if (perfilUsuario && perfilUsuario.role === 'loja') {
-      // Usuário de loja vê apenas seus pacientes
-      filtrados = filtrados.filter(a => a.lojaId === perfilUsuario.lojaId);
     }
+    if (masterFiltroDia) filtrados = filtrados.filter(a => a.data === masterFiltroDia);
 
     if (busca) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(busca) || a.tel.includes(busca) || (a.exame||'').toLowerCase().includes(busca));
     if (filtrosAtivos.size > 0) filtrados = filtrados.filter(a => filtrosAtivos.has(a.situacao || 'agendado'));
@@ -7170,24 +7128,28 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   let vendorLojaAtiva = null;
   let vendorLojaPendenteTroca = null;
+  // Lojas cujo acesso às receitas já foi desbloqueado por senha nesta sessão
+  // (a própria loja do usuário já entra desbloqueada; master nunca precisa).
+  let vendorLojasDesbloqueadas = new Set();
 
   function abrirPortalVendedor() {
     if (!usuarioLogado || !perfilUsuario) { toast('\u26a0\ufe0f','Login necessário','Faça login no sistema primeiro.'); return; }
+    document.getElementById('vendorPage').classList.add('open');
     if (perfilUsuario.role === 'master') {
       // Master escolhe qualquer loja, sem necessidade de senha (já tem acesso total)
-      document.getElementById('vendorPage').classList.add('open');
       vendorLojaAtiva = null;
       vendorRenderNav();
       vendorRenderCta();
       vendorMostrarTelaSelecao();
     } else {
-      // Usuário de loja: acesso direto e exclusivo à própria loja, sem tela de seleção
+      // Usuário de loja: acesso direto à própria loja; as demais lojas exigem
+      // a senha de administrador de cada uma (documento particular de cada loja).
       const minhaLojaId = perfilUsuario.lojaId;
       if (!minhaLojaId || !VENDOR_LOJAS.find(l => l.key === minhaLojaId)) {
         toast('⚠️','Loja não identificada','Seu perfil não possui uma loja válida configurada.');
         return;
       }
-      document.getElementById('vendorPage').classList.add('open');
+      vendorLojasDesbloqueadas.add(minhaLojaId);
       vendorAbrirPagina(minhaLojaId);
     }
   }
@@ -7215,15 +7177,16 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const nav = document.getElementById('vendorNavLojas');
     if (!nav) return;
     const ehMaster = perfilUsuario && perfilUsuario.role === 'master';
-    const lojasVisiveis = ehMaster ? VENDOR_LOJAS : VENDOR_LOJAS.filter(l => l.key === perfilUsuario.lojaId);
-    nav.innerHTML = lojasVisiveis.map(l => {
-      const count = vendorContarReceitas(l.key);
+    const lockIcon = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;opacity:0.5;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    nav.innerHTML = VENDOR_LOJAS.map(l => {
+      const desbloqueada = ehMaster || vendorLojasDesbloqueadas.has(l.key);
       const ativa = vendorLojaAtiva === l.key;
+      const count = desbloqueada ? vendorContarReceitas(l.key) : null;
       return `
         <button class="vendor-nav-item ${ativa ? 'active' : ''}" onclick="vendorClicarLoja('${l.key}')">
           <span class="vn-dot" style="background:${l.dot};"></span>
           ${l.label}
-          <span class="vn-count">${count}</span>
+          ${desbloqueada ? `<span class="vn-count">${count}</span>` : lockIcon}
         </button>`;
     }).join('');
   }
@@ -7231,9 +7194,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function vendorRenderCta() {
     const cta = document.getElementById('vendorLojasCta');
     if (!cta) return;
-    const ehMaster = perfilUsuario && perfilUsuario.role === 'master';
-    const lojasVisiveis = ehMaster ? VENDOR_LOJAS : VENDOR_LOJAS.filter(l => l.key === perfilUsuario.lojaId);
-    cta.innerHTML = lojasVisiveis.map(l => `
+    cta.innerHTML = VENDOR_LOJAS.map(l => `
       <button class="vendor-cta-btn" onclick="vendorClicarLoja('${l.key}')" style="border-color:${l.dot}55;color:${l.dot};">
         <span style="width:8px;height:8px;border-radius:50%;background:${l.dot};display:inline-block;flex-shrink:0;"></span>
         ${l.label}
@@ -7249,13 +7210,45 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   }
 
   function vendorClicarLoja(lojaKey) {
-    // Permissão: master pode abrir qualquer loja; usuário de loja só pode abrir a própria
+    // Master e lojas já desbloqueadas nesta sessão entram direto; as demais
+    // lojas exigem a senha de administrador (receitas são documento particular de cada loja).
     const ehMaster = perfilUsuario && perfilUsuario.role === 'master';
-    if (!ehMaster && perfilUsuario.lojaId !== lojaKey) {
-      toast('🔒','Acesso restrito','Você só pode visualizar os pacientes da sua própria loja.');
+    if (ehMaster || vendorLojasDesbloqueadas.has(lojaKey)) {
+      vendorLojaAtiva = lojaKey;
+      vendorRenderNav();
+      vendorMostrarLoja(lojaKey);
       return;
     }
+    vendorLojaPendenteTroca = lojaKey;
+    const lojaInfo = VENDOR_LOJAS.find(l => l.key === lojaKey);
+    document.getElementById('vendorTrocaNome').textContent = lojaInfo ? lojaInfo.label : lojaKey;
+    document.getElementById('vendorTrocaSenha').value = '';
+    document.getElementById('vendorTrocaError').textContent = '';
+    document.getElementById('vendorTrocaLojaModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('vendorTrocaSenha').focus(), 80);
+  }
+
+  function vendorFecharTroca() {
+    document.getElementById('vendorTrocaLojaModal').style.display = 'none';
+    vendorLojaPendenteTroca = null;
+  }
+
+  function vendorConfirmarTroca() {
+    const senha = document.getElementById('vendorTrocaSenha').value;
+    const errEl = document.getElementById('vendorTrocaError');
+    const lojaKey = vendorLojaPendenteTroca;
+    const senhaCorreta = SENHAS_LOJA[lojaKey] || '';
+    if (!senhaCorreta || senha !== senhaCorreta) {
+      errEl.textContent = '❌ Senha incorreta.';
+      document.getElementById('vendorTrocaSenha').value = '';
+      document.getElementById('vendorTrocaSenha').focus();
+      return;
+    }
+    errEl.textContent = '';
+    document.getElementById('vendorTrocaLojaModal').style.display = 'none';
+    vendorLojasDesbloqueadas.add(lojaKey);
     vendorLojaAtiva = lojaKey;
+    vendorLojaPendenteTroca = null;
     vendorRenderNav();
     vendorMostrarLoja(lojaKey);
   }
@@ -7574,6 +7567,22 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 <!-- ══════════════════════════════════════════════════
      PORTAL DE RECEITAS — VENDEDORES
 ══════════════════════════════════════════════════ -->
+
+<!-- MODAL SENHA PARA ABRIR RECEITAS DE OUTRA LOJA (dentro do portal) -->
+<div id="vendorTrocaLojaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:8200;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:var(--surface);border-radius:var(--r-lg);padding:24px;width:320px;max-width:92vw;box-shadow:0 16px 48px rgba(0,0,0,0.18);animation:slideDown 0.15s ease;">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:4px;">🔐 Autenticar para <span id="vendorTrocaNome" style="color:#0369A1;"></span></h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">Insira a senha de administrador desta loja para visualizar as receitas.</p>
+    <input type="password" id="vendorTrocaSenha" placeholder="Senha de admin da loja"
+      style="width:100%;padding:9px 12px;border:1.5px solid var(--border-strong);border-radius:var(--r);font-size:13px;font-family:var(--font);background:var(--surface2);color:var(--text);margin-bottom:5px;"
+      onkeydown="if(event.key==='Enter') vendorConfirmarTroca()">
+    <div id="vendorTrocaError" style="font-size:12px;color:var(--red);min-height:16px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="vendorFecharTroca()" style="padding:7px 16px;border-radius:var(--r);border:1px solid var(--border-strong);background:none;color:var(--text-muted);font-size:12px;font-family:var(--font);cursor:pointer;">Cancelar</button>
+      <button onclick="vendorConfirmarTroca()" style="padding:7px 16px;border-radius:var(--r);border:none;background:#0E7490;color:#fff;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;">Confirmar</button>
+    </div>
+  </div>
+</div>
 
 <!-- PÁGINA PORTAL VENDEDOR -->
 <div id="vendorPage">
