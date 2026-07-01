@@ -4689,12 +4689,18 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         });
       });
 
-      // Lojas a gravar: qualquer acesso (loja ou master) grava em todas as
-      // lojas envolvidas — cada uma recebe só os próprios pacientes — já que
-      // agora qualquer usuário pode mover um paciente entre lojas livremente.
-      const lojasAlvo = LOJAS_IDS;
-
-      for (const lojaId of lojasAlvo) {
+      // Grava todas as lojas envolvidas em UMA ÚNICA operação atômica
+      // (multi-path update). Antes, cada loja era gravada com um set()
+      // sequencial separado — como agora qualquer acesso escuta as 4 lojas
+      // em tempo real, o listener da primeira loja gravada podia disparar
+      // e reconstruir a tabela com dados ainda desatualizados das lojas
+      // seguintes (que ainda não tinham sido gravadas), revertendo na hora
+      // qualquer alteração visual (situação, vendedor, loja etc.). Com
+      // update() único, todas as gavetas mudam ao mesmo tempo, então os
+      // listeners só veem o estado já consistente.
+      const updates = {};
+      const ts = Date.now();
+      for (const lojaId of LOJAS_IDS) {
         const agDaLoja = agendamentos.filter(a => (a.lojaId || lojaId) === lojaId);
         const notifDaLoja = notificacoes.filter(n => {
           const ag = agendamentos.find(a => a.id === n.agId);
@@ -4702,8 +4708,9 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         });
         const medDaLoja = {};
         agDaLoja.forEach(a => { if (medDadosParaSalvar[a.id]) medDaLoja[a.id] = medDadosParaSalvar[a.id]; });
-        await db.ref(dbPath(lojaId)).set({ agendamentos: agDaLoja, notificacoes: notifDaLoja, medDados: medDaLoja, ts: Date.now() });
+        updates[dbPath(lojaId)] = { agendamentos: agDaLoja, notificacoes: notifDaLoja, medDados: medDaLoja, ts };
       }
+      await db.ref().update(updates);
     }
     catch(e) { console.warn('Firebase write error', e); toast('\u26a0\ufe0f','Erro ao salvar','Verifique sua conex\u00e3o.'); }
   }
