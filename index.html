@@ -221,6 +221,7 @@ body {
   top: calc(100% + 8px);
   right: 0;
   width: 360px;
+  max-width: calc(100vw - 24px);
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-lg);
@@ -230,6 +231,16 @@ body {
   display: none;
 }
 .notif-dropdown.open { display: block; animation: slideDown 0.18s ease; }
+.notif-dropdown.fixed-pop {
+  position: fixed;
+  top: var(--pop-top, 60px);
+  right: 12px;
+  left: auto;
+}
+@media (max-width: 768px) {
+  .notif-dropdown { width: calc(100vw - 24px); }
+  .notif-list { max-height: 60vh; }
+}
 
 @keyframes slideDown {
   from { opacity:0; transform:translateY(-6px); }
@@ -268,7 +279,13 @@ body {
   0%,100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.4; transform: scale(0.7); }
 }
-.notif-list { max-height: 380px; overflow-y: auto; }
+.notif-list {
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* rolagem por toque suave no iOS — sem isso a lista "trava" e não rola no celular */
+  overscroll-behavior: contain;
+}
 .notif-item {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
@@ -667,6 +684,11 @@ body {
   display: none;
 }
 .vendedor-menu.open { display: block; animation: slideDown 0.12s ease; }
+.vendedor-menu.fixed-pop {
+  position: fixed;
+  top: var(--pop-top, 0px);
+  left: var(--pop-left, 0px);
+}
 .vendedor-option {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 12px;
@@ -813,6 +835,11 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   display: none;
 }
 .status-menu.open { display: block; animation: slideDown 0.12s ease; }
+.status-menu.fixed-pop {
+  position: fixed;
+  top: var(--pop-top, 0px);
+  left: var(--pop-left, 0px);
+}
 .status-option {
   display: flex;
   align-items: center;
@@ -1479,6 +1506,11 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   animation: slideDown 0.12s ease;
 }
 .lembrete-th-menu.open { display: block; }
+.lembrete-th-menu.fixed-pop {
+  position: fixed;
+  top: var(--pop-top, 0px);
+  left: var(--pop-left, 0px);
+}
 .lembrete-th-opt {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 13px; font-size: 12px; cursor: pointer;
@@ -4522,6 +4554,12 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   const LOJAS_IDS = ['loja1','loja2','loja3','loja4'];
 
   // Retorna o caminho Firebase correto para os dados da loja
+  // Converte um lojaId de agendamento (que pode ser 'loja1'..'loja4' ou uma
+  // tag de tráfego 'trafego-loja1'..'trafego-loja4') na gaveta física onde
+  // ele deve ser gravado/lido no banco ('loja1'..'loja4'). As tags de
+  // tráfego são só uma classificação visual/comercial — o agendamento
+  // continua fisicamente pertencendo à mesma loja.
+  function lojaFisicaId(lojaId) { return lojaId ? String(lojaId).replace('trafego-', '') : lojaId; }
   function dbPath(lojaId) { return `lojas/${lojaId}/dados`; }
   function dbPathMsgs(lojaId) { return `lojas/${lojaId}/mensagensWA`; }
   function dbPathFila(lojaId, id) { return `lojas/${lojaId}/fila_espera/${id}`; }
@@ -4698,13 +4736,23 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       // qualquer alteração visual (situação, vendedor, loja etc.). Com
       // update() único, todas as gavetas mudam ao mesmo tempo, então os
       // listeners só veem o estado já consistente.
+      // IMPORTANTE: lojaId de um agendamento pode ser uma loja física
+      // ('loja1'..'loja4') OU uma tag de tráfego ('trafego-loja1'..
+      // 'trafego-loja4'). Só existem 4 "gavetas" físicas no banco
+      // (LOJAS_IDS), então usamos lojaFisicaId() para saber em qual gaveta
+      // cada agendamento deve ser gravado, SEM perder o lojaId original
+      // (que continua sendo 'trafego-lojaX' dentro do objeto salvo). Antes,
+      // a comparação era feita direto contra lojaId sem essa conversão, e
+      // como 'trafego-loja1' nunca é === 'loja1', o agendamento não batia
+      // com NENHUMA das 4 gavetas e acabava não sendo salvo em lugar
+      // nenhum — sumindo da listagem no próximo carregamento.
       const updates = {};
       const ts = Date.now();
       for (const lojaId of LOJAS_IDS) {
-        const agDaLoja = agendamentos.filter(a => (a.lojaId || lojaId) === lojaId);
+        const agDaLoja = agendamentos.filter(a => lojaFisicaId(a.lojaId || lojaId) === lojaId);
         const notifDaLoja = notificacoes.filter(n => {
           const ag = agendamentos.find(a => a.id === n.agId);
-          return !ag || (ag.lojaId || lojaId) === lojaId;
+          return !ag || lojaFisicaId(ag.lojaId || lojaId) === lojaId;
         });
         const medDaLoja = {};
         agDaLoja.forEach(a => { if (medDadosParaSalvar[a.id]) medDaLoja[a.id] = medDadosParaSalvar[a.id]; });
@@ -4724,7 +4772,11 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       snaps.forEach((snap, idx) => {
         if (snap.exists()) {
           const obj = snap.val(); const lid = LOJAS_IDS[idx];
-          agendamentos = agendamentos.concat((obj.agendamentos||[]).map(a => ({ ...a, lojaId: lid })));
+          // Preserva o lojaId original de cada agendamento (pode ser uma
+          // tag de tráfego, ex: 'trafego-loja1'). Antes, o lojaId era
+          // sempre sobrescrito com o id físico da gaveta (lid), o que
+          // apagava a tag de tráfego assim que os dados eram recarregados.
+          agendamentos = agendamentos.concat((obj.agendamentos||[]).map(a => ({ ...a, lojaId: a.lojaId || lid })));
           notificacoes = notificacoes.concat(obj.notificacoes||[]);
           Object.assign(medDados, obj.medDados||{});
         }
@@ -5234,7 +5286,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   }
 
   function posicionarMenuFixo(btn, menu) {
-    if (window.innerWidth >= 768) {
+    if (window.innerWidth >= 1024) {
       menu.classList.remove('fixed-pop');
       return;
     }
@@ -5419,9 +5471,12 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const menu = document.getElementById('sm-' + id);
     const jaAberto = menu.classList.contains('open');
     fecharTodosMenus();
-    if (!jaAberto) { menu.classList.add('open'); menuAbertoId = id; }
+    if (!jaAberto) {
+      menu.classList.add('open'); menuAbertoId = id;
+      posicionarMenuFixo(e.currentTarget, menu);
+    }
   }
-  function fecharTodosMenus() { document.querySelectorAll('.status-menu.open').forEach(m => m.classList.remove('open')); menuAbertoId = null; }
+  function fecharTodosMenus() { document.querySelectorAll('.status-menu.open').forEach(m => { m.classList.remove('open'); m.classList.remove('fixed-pop'); }); menuAbertoId = null; }
   document.addEventListener('click', fecharTodosMenus);
 
   // ── VOUCHER AUTOMÁTICO — disparado ao marcar "Comprou o óculos" ──────────
@@ -5571,9 +5626,12 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     if (!menu) return;
     const jaAberto = menu.classList.contains('open');
     fecharTodosMenusVendedor();
-    if (!jaAberto) { menu.classList.add('open'); vendedorMenuAbertoId = id; }
+    if (!jaAberto) {
+      menu.classList.add('open'); vendedorMenuAbertoId = id;
+      posicionarMenuFixo(e.currentTarget, menu);
+    }
   }
-  function fecharTodosMenusVendedor() { document.querySelectorAll('.vendedor-menu.open').forEach(m => m.classList.remove('open')); vendedorMenuAbertoId = null; }
+  function fecharTodosMenusVendedor() { document.querySelectorAll('.vendedor-menu.open').forEach(m => { m.classList.remove('open'); m.classList.remove('fixed-pop'); }); vendedorMenuAbertoId = null; }
 
   async function setVendedor(id, vendedor, e) {
     if (e) e.stopPropagation();
@@ -5665,11 +5723,14 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   function toggleFiltroLembrete(e) {
     e.stopPropagation();
     const menu = document.getElementById('lembreteThMenu');
-    menu.classList.toggle('open');
+    const jaAberto = menu.classList.contains('open');
+    menu.classList.remove('open'); menu.classList.remove('fixed-pop');
+    if (!jaAberto) { menu.classList.add('open'); posicionarMenuFixo(e.currentTarget, menu); }
   }
   function setFiltroLembrete(val) {
     filtroLembrete = val;
     document.getElementById('lembreteThMenu').classList.remove('open');
+    document.getElementById('lembreteThMenu').classList.remove('fixed-pop');
     const btn = document.getElementById('lembreteThBtn');
     const labels = { pendente: '📅 Pendente ▾', lembrar: '🔔 Lembrar ▾', enviado: '✓ Enviado ▾' };
     btn.innerHTML = (val ? labels[val] : 'Lembrete <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>');
@@ -5678,7 +5739,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   }
   document.addEventListener('click', e => {
     const menu = document.getElementById('lembreteThMenu');
-    if (menu && !document.getElementById('lembreteThWrap')?.contains(e.target)) menu.classList.remove('open');
+    if (menu && !document.getElementById('lembreteThWrap')?.contains(e.target)) { menu.classList.remove('open'); menu.classList.remove('fixed-pop'); }
   });
 
   // ── RENDER TABELA ────────────────────────────────────────
@@ -6327,7 +6388,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     medLimparCampos();
 
     // Sempre buscar dados frescos do Firebase (apenas das lojas que o usuário tem permissão de ver)
-    const lojasParaAtualizar = (perfilUsuario && perfilUsuario.role === 'master') ? LOJAS_IDS : [ag.lojaId || (perfilUsuario && perfilUsuario.lojaId)];
+    const lojasParaAtualizar = (perfilUsuario && perfilUsuario.role === 'master') ? LOJAS_IDS : [lojaFisicaId(ag.lojaId) || (perfilUsuario && perfilUsuario.lojaId)];
     Promise.all(lojasParaAtualizar.filter(Boolean).map(lid => db.ref(dbPath(lid)).get().then(snap => ({ lid, snap }))))
       .then(resultados => {
         resultados.forEach(({ lid, snap }) => {
@@ -6335,8 +6396,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           const obj = snap.val();
           Object.assign(medDados, obj.medDados || {});
           if (obj.agendamentos) {
-            const outrasLojas = agendamentos.filter(a => a.lojaId !== lid);
-            agendamentos = outrasLojas.concat(obj.agendamentos.map(a => ({ ...a, lojaId: lid })));
+            const outrasLojas = agendamentos.filter(a => lojaFisicaId(a.lojaId) !== lid);
+            agendamentos = outrasLojas.concat(obj.agendamentos.map(a => ({ ...a, lojaId: a.lojaId || lid })));
           }
         });
         medCarregarDados(id);
@@ -7210,7 +7271,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   function vendorContarReceitas(lojaKey) {
     return agendamentos.filter(a => {
-      if (a.lojaId !== lojaKey) return false;
+      if (lojaFisicaId(a.lojaId) !== lojaKey) return false;
       const dados = medDados[a.id];
       return (dados && dados.receita && (dados.receita.imgs && dados.receita.imgs.length > 0 || dados.receita.doc));
     }).length;
@@ -7280,7 +7341,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const lojaKey = vendorLojaAtiva;
 
     const pacientes = agendamentos.filter(a => {
-      if (a.lojaId !== lojaKey) return false;
+      if (lojaFisicaId(a.lojaId) !== lojaKey) return false;
       if (busca && !a.nome.toLowerCase().includes(busca)) return false;
       return true;
     });
