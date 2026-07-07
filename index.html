@@ -637,14 +637,10 @@ body {
 .ftag.ft-loja2         { border-color: #BBF7D0; color: #15803D; }
 .ftag.ft-loja3         { border-color: #FED7AA; color: #C2410C; }
 .ftag.ft-loja4         { border-color: #E9D5FF; color: #7E22CE; }
-.ftag.ft-trafego-loja1 { border-color: #93C5FD; color: #1D4ED8; font-style: italic; }
-.ftag.ft-trafego-loja2 { border-color: #6EE7B7; color: #15803D; font-style: italic; }
-.ftag.ft-trafego-loja3 { border-color: #FDBA74; color: #C2410C; font-style: italic; }
-.ftag.ft-trafego-loja4 { border-color: #D8B4FE; color: #7E22CE; font-style: italic; }
-.ftag.ft-loja1.active, .ftag.ft-trafego-loja1.active { background: #EFF6FF; }
-.ftag.ft-loja2.active, .ftag.ft-trafego-loja2.active { background: #F0FDF4; }
-.ftag.ft-loja3.active, .ftag.ft-trafego-loja3.active { background: #FFF7ED; }
-.ftag.ft-loja4.active, .ftag.ft-trafego-loja4.active { background: #FDF4FF; }
+.ftag.ft-loja1.active { background: #EFF6FF; }
+.ftag.ft-loja2.active { background: #F0FDF4; }
+.ftag.ft-loja3.active { background: #FFF7ED; }
+.ftag.ft-loja4.active { background: #FDF4FF; }
 .ftag.ft-vendedor { color: #6B4F9E; border-color: rgba(107,79,158,0.25); background: #F5F0FF; }
 .ftag.ft-vendedor:hover { color: #5B3FCA; border-color: rgba(91,63,202,0.4); }
 .ftag.ft-vendedor.active { background: #EDE9FE; color: #5B3FCA; border-color: #5B3FCA; font-weight: 600; }
@@ -896,10 +892,6 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 .lj-loja2           { background:#F0FDF4; border-color:#BBF7D0; color:#15803D; }
 .lj-loja3           { background:#FFF7ED; border-color:#FED7AA; color:#C2410C; }
 .lj-loja4           { background:#FDF4FF; border-color:#E9D5FF; color:#7E22CE; }
-.lj-trafego-loja1   { background:#EFF6FF; border-color:#93C5FD; color:#1D4ED8; font-style:italic; }
-.lj-trafego-loja2   { background:#F0FDF4; border-color:#6EE7B7; color:#15803D; font-style:italic; }
-.lj-trafego-loja3   { background:#FFF7ED; border-color:#FDBA74; color:#C2410C; font-style:italic; }
-.lj-trafego-loja4   { background:#FDF4FF; border-color:#D8B4FE; color:#7E22CE; font-style:italic; }
 
 .loja-menu {
   position: absolute;
@@ -1183,6 +1175,17 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   padding: 1rem;
 }
 #modalDupTel.open { display: flex; animation: fadeIn 0.15s ease; }
+#modalTrafegoLoja {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 9500;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+#modalTrafegoLoja.open { display: flex; animation: fadeIn 0.15s ease; }
 .dup-tel-box {
   background: var(--surface);
   border-radius: var(--r-lg);
@@ -2973,6 +2976,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           <option value="Rayane">Rayane</option>
           <option value="Retorno">Retorno</option>
           <option value="Samara">Samara</option>
+          <option value="Tráfego">Tráfego</option>
           <option value="Vitória">Vitória</option>
         </select>
       </div>
@@ -3149,10 +3153,6 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
             <button class="ftag ft-loja2" data-loja="loja2" onclick="toggleFiltroLoja('loja2',this)"><span class="ftag-dot" style="background:#15803D"></span>L2</button>
             <button class="ftag ft-loja3" data-loja="loja3" onclick="toggleFiltroLoja('loja3',this)"><span class="ftag-dot" style="background:#C2410C"></span>L3</button>
             <button class="ftag ft-loja4" data-loja="loja4" onclick="toggleFiltroLoja('loja4',this)"><span class="ftag-dot" style="background:#7E22CE"></span>L4</button>
-            <button class="ftag ft-trafego-loja1" data-loja="trafego-loja1" onclick="toggleFiltroLoja('trafego-loja1',this)"><span class="ftag-dot" style="background:#93C5FD"></span>TL1</button>
-            <button class="ftag ft-trafego-loja2" data-loja="trafego-loja2" onclick="toggleFiltroLoja('trafego-loja2',this)"><span class="ftag-dot" style="background:#6EE7B7"></span>TL2</button>
-            <button class="ftag ft-trafego-loja3" data-loja="trafego-loja3" onclick="toggleFiltroLoja('trafego-loja3',this)"><span class="ftag-dot" style="background:#FDBA74"></span>TL3</button>
-            <button class="ftag ft-trafego-loja4" data-loja="trafego-loja4" onclick="toggleFiltroLoja('trafego-loja4',this)"><span class="ftag-dot" style="background:#D8B4FE"></span>TL4</button>
           </div>
         </div>
 
@@ -3275,6 +3275,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           <option value="Rayane">Rayane</option>
           <option value="Retorno">Retorno</option>
           <option value="Samara">Samara</option>
+          <option value="Tráfego">Tráfego</option>
           <option value="Vitória">Vitória</option>
         </select>
       </div>
@@ -4859,7 +4860,8 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   let _pendingAgendamentoData = null;
 
-  let _pendingAgendamentoOutraLoja = null; // { nome, tel, data, horario, exame, vendedor, lojaOrigemId }
+  let _pendingAgendamentoOutraLoja = null; // { nome, tel, data, horario, exame, vendedor, lojaOrigemId, lojaForcada }
+  let _pendingAgendamentoTrafego = null; // { nome, tel, data, horario, exame, vendedor }
 
   async function agendar() {
     const nome    = document.getElementById('nome').value.trim();
@@ -4870,12 +4872,39 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const vendedor = document.getElementById('vendedor').value;
     if (!nome || !tel || !data || !horario) { toast('⚠️','Campos obrigatórios','Preencha nome, telefone, data e horário.'); return; }
 
+    // Vendedor "Tráfego" não pertence a uma loja fixa: precisa perguntar de
+    // qual loja é o paciente antes de continuar o agendamento.
+    if (vendedor === 'Tráfego') {
+      _pendingAgendamentoTrafego = { nome, tel, data, horario, exame, vendedor };
+      document.getElementById('modalTrafegoLoja').classList.add('open');
+      return;
+    }
+
+    await _prosseguirAgendamento(nome, tel, data, horario, exame, vendedor, null);
+  }
+
+  function confirmarLojaTrafego(lojaId) {
+    document.getElementById('modalTrafegoLoja').classList.remove('open');
+    if (!_pendingAgendamentoTrafego) return;
+    const { nome, tel, data, horario, exame, vendedor } = _pendingAgendamentoTrafego;
+    _pendingAgendamentoTrafego = null;
+    _prosseguirAgendamento(nome, tel, data, horario, exame, vendedor, lojaId);
+  }
+
+  function fecharModalTrafegoLoja() {
+    document.getElementById('modalTrafegoLoja').classList.remove('open');
+    _pendingAgendamentoTrafego = null;
+  }
+
+  // lojaForcada: quando vendedor é "Tráfego", a loja do paciente é escolhida
+  // manualmente no modal e deve prevalecer sobre a loja do usuário logado.
+  async function _prosseguirAgendamento(nome, tel, data, horario, exame, vendedor, lojaForcada) {
     const telLimpo = tel.replace(/\D/g,'');
 
     // Verificar duplicata de telefone NA MESMA LOJA (agendamentos já em memória)
     const duplicadoMesmaLoja = agendamentos.find(a => a.tel.replace(/\D/g,'') === telLimpo);
     if (duplicadoMesmaLoja) {
-      _pendingAgendamentoData = { nome, tel, data, horario, exame, vendedor };
+      _pendingAgendamentoData = { nome, tel, data, horario, exame, vendedor, lojaForcada };
       document.getElementById('dupTelInfo').textContent = '📞 ' + tel + ' — já cadastrado para: ' + duplicadoMesmaLoja.nome;
       document.getElementById('modalDupTel').classList.add('open');
       return;
@@ -4885,7 +4914,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     // Trava aplicada apenas se o agendamento existente na outra loja for de até 20 dias atrás (campo "data")
     const JANELA_DIAS_OUTRA_LOJA = 20;
     const hojeMs = new Date().setHours(0,0,0,0);
-    const lojaAtualId = (perfilUsuario && perfilUsuario.role === 'master') ? lojaAtiva : perfilUsuario.lojaId;
+    const lojaAtualId = lojaForcada || ((perfilUsuario && perfilUsuario.role === 'master') ? lojaAtiva : perfilUsuario.lojaId);
     const outrasLojas = LOJAS_IDS.filter(lid => lid !== lojaAtualId);
     try {
       const snaps = await Promise.all(outrasLojas.map(lid => db.ref(dbPath(lid)).get().then(snap => ({ lid, snap }))));
@@ -4904,7 +4933,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           })
           .sort((a,b) => new Date(b.data) - new Date(a.data))[0];
         if (encontrado) {
-          _pendingAgendamentoOutraLoja = { nome, tel, data, horario, exame, vendedor, lojaOrigemId: lid };
+          _pendingAgendamentoOutraLoja = { nome, tel, data, horario, exame, vendedor, lojaOrigemId: lid, lojaForcada };
           abrirModalAgendamentoOutraLoja(encontrado, lid, lojaAtualId);
           return;
         }
@@ -4914,7 +4943,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       // Em caso de falha na verificação, segue o fluxo normal (não bloqueia o atendimento)
     }
 
-    await _efetivarAgendamento(nome, tel, data, horario, exame, false, vendedor);
+    await _efetivarAgendamento(nome, tel, data, horario, exame, false, vendedor, lojaForcada);
   }
 
   function abrirModalAgendamentoOutraLoja(agExistente, lojaOrigemId, lojaDestinoId) {
@@ -4932,9 +4961,9 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   async function confirmarAgendamentoOutraLoja() {
     if (!_pendingAgendamentoOutraLoja) return;
     document.getElementById('modalSenhaAdmin').classList.remove('open');
-    const { nome, tel, data, horario, exame, vendedor } = _pendingAgendamentoOutraLoja;
+    const { nome, tel, data, horario, exame, vendedor, lojaForcada } = _pendingAgendamentoOutraLoja;
     _pendingAgendamentoOutraLoja = null;
-    await _efetivarAgendamento(nome, tel, data, horario, exame, false, vendedor);
+    await _efetivarAgendamento(nome, tel, data, horario, exame, false, vendedor, lojaForcada);
   }
 
   function fecharDupTel() {
@@ -4944,14 +4973,14 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   async function confirmarAgendarMesmoDup() {
     if (!_pendingAgendamentoData) return;
-    const { nome, tel, data, horario, exame, vendedor } = _pendingAgendamentoData;
+    const { nome, tel, data, horario, exame, vendedor, lojaForcada } = _pendingAgendamentoData;
     _pendingAgendamentoData = null;
     fecharDupTel();
-    await _efetivarAgendamento(nome, tel, data, horario, exame, true, vendedor);
+    await _efetivarAgendamento(nome, tel, data, horario, exame, true, vendedor, lojaForcada);
   }
 
-  async function _efetivarAgendamento(nome, tel, data, horario, exame, isFamilia, vendedor) {
-    const lojaParaAgendamento = (perfilUsuario && perfilUsuario.role === 'master') ? lojaAtiva : perfilUsuario.lojaId;
+  async function _efetivarAgendamento(nome, tel, data, horario, exame, isFamilia, vendedor, lojaForcada) {
+    const lojaParaAgendamento = lojaForcada || ((perfilUsuario && perfilUsuario.role === 'master') ? lojaAtiva : perfilUsuario.lojaId);
     agendamentos.unshift({ id: Date.now().toString(), nome, tel, data, horario, exame: exame || 'Não informado', criadoEm: new Date().toISOString(), lembreteEnviado: false, isFamilia: !!isFamilia, vendedor: vendedor || '', lojaId: lojaParaAgendamento || '' });
     await salvar();
     renderCal(); renderTabela(); atualizarStats();
@@ -5561,17 +5590,12 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   // de cada loja). Não é mais usada para alterar a loja de um agendamento.
   const SENHAS_LOJA = {
     'loja1':'teste1','loja2':'teste2','loja3':'teste3','loja4':'teste4',
-    'trafego-loja1':'trafego1','trafego-loja2':'trafego2','trafego-loja3':'trafego3','trafego-loja4':'trafego4',
   };
   const LOJAS = {
     'loja1':         { label: 'Loja 1',         cls: 'lj-loja1',         dot: '#1D4ED8' },
     'loja2':         { label: 'Loja 2',         cls: 'lj-loja2',         dot: '#15803D' },
     'loja3':         { label: 'Loja 3',         cls: 'lj-loja3',         dot: '#C2410C' },
     'loja4':         { label: 'Loja 4',         cls: 'lj-loja4',         dot: '#7E22CE' },
-    'trafego-loja1': { label: 'Tráfego Loja 1', cls: 'lj-trafego-loja1', dot: '#93C5FD' },
-    'trafego-loja2': { label: 'Tráfego Loja 2', cls: 'lj-trafego-loja2', dot: '#6EE7B7' },
-    'trafego-loja3': { label: 'Tráfego Loja 3', cls: 'lj-trafego-loja3', dot: '#FDBA74' },
-    'trafego-loja4': { label: 'Tráfego Loja 4', cls: 'lj-trafego-loja4', dot: '#D8B4FE' },
   };
 
   function lojaBadge(ag, sfx) {
@@ -5599,7 +5623,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   let lojaMenuAbertoId = null;
 
   // ── VENDEDORES ────────────────────────────────────────────
-  const VENDEDORES = ['Aline','Cristhofer','Danuza','Dreice','Fernanda','Isabella','Jefferson','Melissa','Rayane','Retorno','Samara','Vitória'];
+  const VENDEDORES = ['Aline','Cristhofer','Danuza','Dreice','Fernanda','Isabella','Jefferson','Melissa','Rayane','Retorno','Samara','Tráfego','Vitória'];
 
   let vendedorMenuAbertoId = null;
   function vendedorBadge(ag) {
@@ -7809,6 +7833,30 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     <div class="dup-tel-footer">
       <button class="btn-secondary" onclick="fecharDupTel()">Cancelar</button>
       <button class="btn-dup-continuar" onclick="confirmarAgendarMesmoDup()">👨‍👩‍👦 Cadastrar como família</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SELECIONAR LOJA DO PACIENTE (VENDEDOR TRÁFEGO) -->
+<div id="modalTrafegoLoja">
+  <div class="dup-tel-box">
+    <div class="dup-tel-header">
+      <div class="dup-tel-icon">🚦</div>
+      <div>
+        <h3>Usuário do Tráfego identificado</h3>
+        <p>Selecione de qual loja é esse paciente</p>
+      </div>
+    </div>
+    <div class="dup-tel-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn-secondary" style="padding:14px 10px;font-weight:600;" onclick="confirmarLojaTrafego('loja1')">🔵 Loja 1</button>
+        <button class="btn-secondary" style="padding:14px 10px;font-weight:600;" onclick="confirmarLojaTrafego('loja2')">🟢 Loja 2</button>
+        <button class="btn-secondary" style="padding:14px 10px;font-weight:600;" onclick="confirmarLojaTrafego('loja3')">🟠 Loja 3</button>
+        <button class="btn-secondary" style="padding:14px 10px;font-weight:600;" onclick="confirmarLojaTrafego('loja4')">🟣 Loja 4</button>
+      </div>
+    </div>
+    <div class="dup-tel-footer">
+      <button class="btn-secondary" onclick="fecharModalTrafegoLoja()">Cancelar</button>
     </div>
   </div>
 </div>
