@@ -4523,7 +4523,6 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   // ═══════════════════════════════════════════════════════
   //  FIREBASE AUTH + REALTIME DATABASE
   // ═══════════════════════════════════════════════════════
-  const INATIVIDADE_MS = 5 * 60 * 1000;
 
   (function verificarProtocolo() {
     const proto = window.location.protocol;
@@ -4543,7 +4542,6 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   let agendamentos   = [];
   let notificacoes   = [];
   let notifOpen      = false;
-  let inativTimer    = null;
   let escutandoFirebase = false;
 
   // ── PERFIL DO USUÁRIO ────────────────────────────────────
@@ -4629,7 +4627,6 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       await carregarDados();
       await carregarMensagensWA();
       iniciarEscutaFirebase();
-      iniciarInatividade();
       init();
     } else {
       usuarioLogado = null;
@@ -4688,16 +4685,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     } catch { document.getElementById('loginErrorMsg').textContent = 'Não foi possível enviar o e-mail.'; document.getElementById('loginError').classList.remove('hidden'); }
   }
 
-  async function travar() { clearTimeout(inativTimer); await auth.signOut(); }
-
-  function reiniciarInatividade() {
-    clearTimeout(inativTimer);
-    inativTimer = setTimeout(async () => { await travar(); document.getElementById('loginSubtitle').textContent = 'Sessão encerrada por inatividade.'; }, INATIVIDADE_MS);
-  }
-  function iniciarInatividade() {
-    ['mousemove','keydown','click','scroll','touchstart'].forEach(ev => document.addEventListener(ev, reiniciarInatividade, { passive: true }));
-    reiniciarInatividade();
-  }
+  async function travar() { await auth.signOut(); }
 
   function toggleEye(inputId, btn) {
     const inp = document.getElementById(inputId);
