@@ -4543,11 +4543,6 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   let notificacoes   = [];
   let notifOpen      = false;
   let escutandoFirebase = false;
-  // Controla quais lojas já receberam ao menos um snapshot do listener em
-  // tempo real. Enquanto uma loja não estiver aqui, salvar() NUNCA escreve
-  // no nó dela — isso evita a corrida que apagava lojas inteiras (ver
-  // comentário detalhado em salvar()).
-  let lojasCarregadas = new Set();
 
   // ── PERFIL DO USUÁRIO ────────────────────────────────────
   // role: 'master' | 'loja'
@@ -4640,7 +4635,6 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       agendamentos  = [];
       notificacoes  = [];
       escutandoFirebase = false;
-      lojasCarregadas = new Set();
       if (_lembreteInterval) { clearInterval(_lembreteInterval); _lembreteInterval = null; }
       // Desligar listeners de todas as lojas
       LOJAS_IDS.forEach(lid => db.ref(dbPath(lid)).off());
@@ -4702,91 +4696,134 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
   }
 
-  // ── SALVAR — cada registro é gravado na loja real do paciente ─
-  // (identificada automaticamente por a.lojaId, que já vem do agendamento
-  // original). O master nunca precisa selecionar "loja de escrita": ele
-  // grava em todas as lojas envolvidas de uma vez, cada uma na sua própria
-  // gaveta do Firebase. Usuário de loja única só grava na sua própria loja.
-  async function salvar() {
-    if (!usuarioLogado || !perfilUsuario) return;
-    try {
-      const medDadosParaSalvar = {};
-      Object.entries(medDados).forEach(([agId, tiposDados]) => {
-        medDadosParaSalvar[agId] = {};
-        Object.entries(tiposDados).forEach(([tipo, val]) => {
-          if (val && Array.isArray(val.imgs)) {
-            medDadosParaSalvar[agId][tipo] = { ...val, imgs: val.imgs.filter(img => !img.isPdfGerado) };
-          } else {
-            medDadosParaSalvar[agId][tipo] = val;
-          }
-        });
-      });
+  // ═══════════════════════════════════════════════════════════════════
+  // GRAVAÇÃO — modelo seguro para múltiplos usuários simultâneos
+  // ═══════════════════════════════════════════════════════════════════
+  // A versão antiga tinha uma função salvar() única que, a cada alteração
+  // (mesmo em UM único paciente), pegava a variável local `agendamentos`
+  // inteira e regravava as listas COMPLETAS de todas as lojas já
+  // carregadas nesta sessão. Isso é seguro com um usuário só. Com vários
+  // usuários simultâneos, cada aba tem sua PRÓPRIA cópia de
+  // `agendamentos` em memória; se o usuário A salva alguns segundos
+  // depois de B, a gravação de A reescreve a loja inteira com a cópia
+  // que A tinha — que pode não incluir o que B acabou de gravar. O que B
+  // salvou é apagado silenciosamente. Foi esse mecanismo que já causou
+  // perda de dados reais na loja2.
+  //
+  // Correção definitiva: cada agendamento/notificação/documento passa a
+  // ser uma CHAVE PRÓPRIA no Firebase (lojas/{lojaId}/dados/agendamentos/
+  // {id}), e toda gravação escreve OU APAGA apenas a chave do registro
+  // que realmente mudou — nunca a coleção inteira. Duas pessoas editando
+  // pacientes diferentes ao mesmo tempo gravam em caminhos diferentes e
+  // nunca se sobrescrevem. carregarDados()/reconstruirEstado() já leem
+  // tanto o formato novo (objeto por id) quanto o antigo (array) via
+  // Object.values(), então nenhum dado existente se perde na transição.
+  // Timestamp + sufixo aleatório: dois usuários em lojas diferentes podem
+  // criar um registro no mesmo milissegundo; o sufixo evita que os ids colidam.
+  function gerarId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function pathAg(lojaId, id)    { return `lojas/${lojaId}/dados/agendamentos/${id}`; }
+  function pathNotif(lojaId, id) { return `lojas/${lojaId}/dados/notificacoes/${id}`; }
+  function pathMed(lojaId, agId, tipo) { return `lojas/${lojaId}/dados/medDados/${agId}/${tipo}`; }
 
-      // ═══════════════════════════════════════════════════════
-      // POR QUE OS AGENDAMENTOS SUMIAM QUANDO UMA LOJA COMEÇAVA A USAR:
-      // iniciarEscutaFirebase() liga um listener on('value') SEPARADO para
-      // cada uma das 4 lojas. O Firebase entrega esses 4 snapshots de forma
-      // assíncrona e INDEPENDENTE — não chegam todos no mesmo instante.
-      // Assim que o snapshot da loja1 chega, reconstruirEstado() já
-      // reconstrói a variável global `agendamentos` com o que tiver no
-      // cache até aquele momento — que pode ser SÓ a loja1, se os
-      // snapshots de loja2/3/4 ainda não tiverem chegado.
-      // Se, nessa janela de alguns milissegundos, o usuário salvasse algo
-      // (ex: criava um agendamento), o salvar() varria as 4 gavetas e
-      // regravava TODAS com base nesse `agendamentos` incompleto — como
-      // loja2/3/4 não existiam ainda na memória, elas eram sobrescritas
-      // com listas vazias, apagando permanentemente todos os agendamentos
-      // dessas lojas no banco.
-      // A correção: só gravamos a gaveta de uma loja se ela já tiver
-      // confirmado (lojasCarregadas) que seu snapshot inicial já chegou.
-      // Lojas ainda não carregadas simplesmente não entram no `updates` e
-      // ficam intocadas no banco até estarem prontas.
-      // ═══════════════════════════════════════════════════════
-      const updates = {};
-      const ts = Date.now();
-      for (const lojaId of LOJAS_IDS) {
-        if (!lojasCarregadas.has(lojaId)) continue;
-        const agDaLoja = agendamentos.filter(a => lojaFisicaId(a.lojaId || lojaId) === lojaId);
-        const notifDaLoja = notificacoes.filter(n => {
-          const ag = agendamentos.find(a => a.id === n.agId);
-          return !ag || lojaFisicaId(ag.lojaId || lojaId) === lojaId;
-        });
-        const medDaLoja = {};
-        agDaLoja.forEach(a => { if (medDadosParaSalvar[a.id]) medDaLoja[a.id] = medDadosParaSalvar[a.id]; });
-        updates[dbPath(lojaId)] = { agendamentos: agDaLoja, notificacoes: notifDaLoja, medDados: medDaLoja, ts };
-      }
-      if (Object.keys(updates).length === 0) {
-        console.warn('salvar() abortado: nenhuma loja pronta ainda.');
-        return;
-      }
-      await db.ref().update(updates);
-    }
-    catch(e) { console.warn('Firebase write error', e); toast('\u26a0\ufe0f','Erro ao salvar','Verifique sua conex\u00e3o.'); }
+  function limparImgsPdf(val) {
+    if (val && Array.isArray(val.imgs)) return { ...val, imgs: val.imgs.filter(img => !img.isPdfGerado) };
+    return val;
   }
 
+  // Grava/atualiza UM agendamento — nunca toca em outros registros.
+  async function salvarAgendamento(ag) {
+    if (!usuarioLogado || !ag || !ag.id) return;
+    const lojaId = lojaFisicaId(ag.lojaId);
+    if (!lojaId) { console.warn('salvarAgendamento: agendamento sem lojaId, abortado.'); return; }
+    try {
+      await db.ref().update({
+        [pathAg(lojaId, ag.id)]: ag,
+        [`lojas/${lojaId}/dados/ts`]: Date.now(),
+      });
+    } catch(e) { console.warn('Firebase write error', e); toast('⚠️','Erro ao salvar','Verifique sua conexão.'); }
+  }
+
+  // Move um agendamento de uma loja física para outra: grava na nova e
+  // remove da antiga em uma única transação update() (atômica).
+  async function moverAgendamentoDeLoja(ag, lojaAntigaId) {
+    if (!usuarioLogado || !ag || !ag.id) return;
+    const lojaNovaId  = lojaFisicaId(ag.lojaId);
+    const lojaVelhaId = lojaFisicaId(lojaAntigaId);
+    if (!lojaNovaId) return;
+    const updates = { [pathAg(lojaNovaId, ag.id)]: ag, [`lojas/${lojaNovaId}/dados/ts`]: Date.now() };
+    if (lojaVelhaId && lojaVelhaId !== lojaNovaId) updates[pathAg(lojaVelhaId, ag.id)] = null;
+    try { await db.ref().update(updates); }
+    catch(e) { console.warn('Firebase write error', e); toast('⚠️','Erro ao salvar','Verifique sua conexão.'); }
+  }
+
+  // Remove UM agendamento e suas notificações associadas — nunca toca em
+  // outros registros.
+  async function excluirAgendamentoDb(ag) {
+    if (!usuarioLogado || !ag || !ag.id) return;
+    const lojaId = lojaFisicaId(ag.lojaId || lojaAtiva);
+    const updates = { [pathAg(lojaId, ag.id)]: null };
+    notificacoes.filter(n => n.agId === ag.id).forEach(n => { updates[pathNotif(lojaId, n.id)] = null; });
+    try { await db.ref().update(updates); }
+    catch(e) { console.warn('Firebase delete error', e); toast('⚠️','Erro ao excluir','Verifique sua conexão.'); }
+  }
+
+  // Grava/atualiza UMA notificação.
+  async function salvarNotificacao(n, lojaIdConhecido) {
+    if (!usuarioLogado || !n || !n.id) return;
+    const lojaId = lojaFisicaId(lojaIdConhecido || (agendamentos.find(a => a.id === n.agId)||{}).lojaId || lojaAtiva);
+    if (!lojaId) return;
+    try { await db.ref(pathNotif(lojaId, n.id)).set(n); }
+    catch(e) { console.warn('Firebase write error', e); }
+  }
+
+  // Remove UMA notificação.
+  async function excluirNotificacaoDb(n, lojaIdConhecido) {
+    if (!n || !n.id) return;
+    const lojaId = lojaFisicaId(lojaIdConhecido || (agendamentos.find(a => a.id === n.agId)||{}).lojaId || lojaAtiva);
+    if (!lojaId) return;
+    try { await db.ref(pathNotif(lojaId, n.id)).remove(); }
+    catch(e) { console.warn('Firebase delete error', e); }
+  }
+
+  // Grava um único tipo de documento (receita/prontuário/diagnóstico/
+  // atestado) de UM paciente — nunca reescreve documentos de outros
+  // pacientes nem de outros tipos.
+  async function salvarMedDados(agId, tipo) {
+    if (!usuarioLogado || !agId) return;
+    const ag = agendamentos.find(a => a.id === agId);
+    if (!ag) return;
+    const lojaId = lojaFisicaId(ag.lojaId || lojaAtiva);
+    const val = limparImgsPdf((medDados[agId]||{})[tipo]);
+    try { await db.ref(pathMed(lojaId, agId, tipo)).set(val); }
+    catch(e) { console.warn('Firebase write error', e); toast('⚠️','Erro ao salvar','Verifique sua conexão.'); }
+  }
+
+  // Converte uma coleção (agendamentos/notificacoes) em array, aceitando
+  // tanto o formato NOVO (objeto { id: registro }) quanto o formato
+  // ANTIGO/legado (array). Object.values() funciona igual para os dois
+  // casos — Object.values([a,b,c]) já retorna [a,b,c] — então a leitura
+  // é 100% compatível com dados gravados antes desta correção.
+  function normalizarColecao(node) { return node ? Object.values(node).filter(Boolean) : []; }
+
   // ── CARREGAR — qualquer acesso (loja ou master) lê todas as lojas ─
+  // Usada apenas para popular a tela instantaneamente no login; o estado
+  // "de verdade" a partir daqui é mantido pelos listeners em tempo real
+  // de iniciarEscutaFirebase() (chamada logo em seguida no login).
   async function carregarDados() {
     if (!usuarioLogado || !perfilUsuario) return;
     try {
       const snaps = await Promise.all(LOJAS_IDS.map(lid => db.ref(dbPath(lid)).get()));
       agendamentos = []; notificacoes = []; medDados = {};
       snaps.forEach((snap, idx) => {
-        if (snap.exists()) {
-          const obj = snap.val(); const lid = LOJAS_IDS[idx];
-          // Preserva o lojaId original de cada agendamento (pode ser uma
-          // tag de tráfego, ex: 'trafego-loja1'). Antes, o lojaId era
-          // sempre sobrescrito com o id físico da gaveta (lid), o que
-          // apagava a tag de tráfego assim que os dados eram recarregados.
-          agendamentos = agendamentos.concat((obj.agendamentos||[]).map(a => ({ ...a, lojaId: a.lojaId || lid })));
-          notificacoes = notificacoes.concat(obj.notificacoes||[]);
-          Object.assign(medDados, obj.medDados||{});
-        }
+        if (!snap.exists()) return;
+        const obj = snap.val(); const lid = LOJAS_IDS[idx];
+        // Preserva o lojaId original de cada agendamento (pode ser uma tag
+        // de tráfego, ex: 'trafego-loja1') em vez de forçar sempre o id
+        // físico da gaveta.
+        agendamentos = agendamentos.concat(normalizarColecao(obj.agendamentos).map(a => ({ ...a, lojaId: a.lojaId || lid })));
+        notificacoes = notificacoes.concat(normalizarColecao(obj.notificacoes));
+        Object.assign(medDados, obj.medDados||{});
       });
-      // Como carregarDados() já buscou as 4 lojas por completo (via .get()),
-      // marcamos todas como carregadas aqui — assim, mesmo que os listeners
-      // em tempo real (iniciarEscutaFirebase) ainda não tenham disparado,
-      // salvar() já pode gravar com segurança logo após o login.
-      LOJAS_IDS.forEach(l => lojasCarregadas.add(l));
     } catch(e) { console.warn('Firebase read error', e); }
   }
 
@@ -4794,19 +4831,23 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   let _lembreteInterval = null;
 
   // ── ESCUTA TEMPO REAL ─────────────────────────────────────
+  // Cada loja tem seu próprio listener independente. Como toda gravação
+  // agora é pontual por registro (ver salvarAgendamento/excluirAgendamentoDb
+  // /salvarNotificacao/salvarMedDados acima), não existe mais nenhum risco
+  // de uma sessão com estado parcial apagar dados de outra loja — o antigo
+  // controle "lojasCarregadas" (que só bloqueava gravação em lojas ainda
+  // não carregadas nesta sessão) deixou de ser necessário e foi removido.
   function iniciarEscutaFirebase() {
     if (escutandoFirebase) return;
     escutandoFirebase = true;
     primeiroSnapshot = true;
-    // Qualquer acesso (loja ou master) escuta todas as lojas — visão total de clientes.
-    const lojasParaEscutar = LOJAS_IDS;
-    let snapshotCache = {};
+    const snapshotCache = {};
     function reconstruirEstado() {
       agendamentos = []; notificacoes = []; medDados = {};
-      lojasParaEscutar.forEach(lid => {
+      LOJAS_IDS.forEach(lid => {
         const d = snapshotCache[lid]; if (!d) return;
-        agendamentos = agendamentos.concat((d.agendamentos||[]).map(a => ({ ...a, lojaId: lid })));
-        notificacoes = notificacoes.concat(d.notificacoes||[]);
+        agendamentos = agendamentos.concat(normalizarColecao(d.agendamentos).map(a => ({ ...a, lojaId: a.lojaId || lid })));
+        notificacoes = notificacoes.concat(normalizarColecao(d.notificacoes));
         Object.assign(medDados, d.medDados||{});
       });
       renderCal(); renderTabela(); atualizarStats(); renderNotificacoes();
@@ -4816,11 +4857,10 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         medRenderGalerias();
       }
     }
-    lojasParaEscutar.forEach(lid => {
+    LOJAS_IDS.forEach(lid => {
       db.ref(dbPath(lid)).on('value', snap => {
         if (!usuarioLogado) return;
         snapshotCache[lid] = snap.exists() ? snap.val() : {};
-        lojasCarregadas.add(lid);
         reconstruirEstado();
         if (primeiroSnapshot) {
           primeiroSnapshot = false;
@@ -4828,7 +4868,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           if (_lembreteInterval) clearInterval(_lembreteInterval);
           _lembreteInterval = setInterval(() => { if (usuarioLogado) verificarLembretes(); }, 60000);
         }
-      });
+      }, err => console.warn('Firebase listener error ('+lid+')', err));
     });
   }
 
@@ -4987,8 +5027,11 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
 
   async function _efetivarAgendamento(nome, tel, data, horario, exame, isFamilia, vendedor, lojaForcada) {
     const lojaParaAgendamento = lojaForcada || ((perfilUsuario && perfilUsuario.role === 'master') ? lojaAtiva : perfilUsuario.lojaId);
-    agendamentos.unshift({ id: Date.now().toString(), nome, tel, data, horario, exame: exame || 'Não informado', criadoEm: new Date().toISOString(), lembreteEnviado: false, isFamilia: !!isFamilia, vendedor: vendedor || '', lojaId: lojaParaAgendamento || '' });
-    await salvar();
+    // gerarId() combina timestamp + sufixo aleatório: evita colisão quando
+    // duas lojas diferentes criam um agendamento no mesmo milissegundo.
+    const novoAg = { id: gerarId(), nome, tel, data, horario, exame: exame || 'Não informado', criadoEm: new Date().toISOString(), lembreteEnviado: false, isFamilia: !!isFamilia, vendedor: vendedor || '', lojaId: lojaParaAgendamento || '' };
+    agendamentos.unshift(novoAg);
+    await salvarAgendamento(novoAg);
     renderCal(); renderTabela(); atualizarStats();
     toast('✅','Agendado!',`${nome} — ${formatarData(data)} às ${horario}`);
     ['nome','telefone','data','horario','exame'].forEach(id => document.getElementById(id).value = '');
@@ -5018,9 +5061,10 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       const msgId = id.slice(4);
       await _excluirMensagemConfirmado(msgId);
     } else {
+      const ag = agendamentos.find(a => a.id === id);
       agendamentos = agendamentos.filter(a => a.id !== id);
       notificacoes = notificacoes.filter(n => n.agId !== id);
-      await salvar();
+      if (ag) await excluirAgendamentoDb(ag);
       renderCal(); renderTabela(); atualizarStats(); renderNotificacoes();
     }
   }
@@ -5028,15 +5072,17 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   async function marcarFeito(id) {
     const ag = agendamentos.find(a => a.id === id);
     if (ag) ag.lembreteEnviado = true;
+    const notifsDoAg = notificacoes.filter(n => n.agId === id);
     notificacoes = notificacoes.filter(n => n.agId !== id);
-    await salvar();
+    if (ag) await salvarAgendamento(ag);
+    await Promise.all(notifsDoAg.map(n => excluirNotificacaoDb(n, ag && ag.lojaId)));
     renderTabela(); atualizarStats(); renderNotificacoes();
   }
 
   async function verificarLembretes() {
     const agora = new Date();
-    let mudou = false;
     const novasIds = new Set();
+    const novasNotifs = []; // { notif, lojaId } — gravadas uma a uma no final
 
     agendamentos.forEach(ag => {
       if (ag.lembreteEnviado) return;
@@ -5048,7 +5094,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       // Gatilho 1: 2 dias após o cadastro (lembrete pós-agendamento)
       if (diffDiasCriacao >= 2) {
         const nid = 'n' + ag.id + '_pos';
-        notificacoes.push({
+        const notif = {
           id: nid,
           agId: ag.id,
           nome: ag.nome,
@@ -5060,9 +5106,10 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           criadaEm: new Date().toISOString(),
           tipo: 'pos_agendamento',
           tipoLabel: '📅 Lembrete pós-agendamento'
-        });
+        };
+        notificacoes.push(notif);
+        novasNotifs.push({ notif, lojaId: ag.lojaId });
         novasIds.add(nid);
-        mudou = true;
         mostrarTicker(ag.nome, 'pos_agendamento');
         toast('🔔','Novo lembrete!',`${ag.nome} · ${ag.tel}`);
         return;
@@ -5074,7 +5121,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         const diffDiasConsulta = Math.round((dataConsulta - agora) / 86400000);
         if (diffDiasConsulta <= 3 && diffDiasConsulta >= 0) {
           const nid = 'n' + ag.id + '_pre';
-          notificacoes.push({
+          const notif = {
             id: nid,
             agId: ag.id,
             nome: ag.nome,
@@ -5086,18 +5133,21 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
             criadaEm: new Date().toISOString(),
             tipo: 'pre_consulta',
             tipoLabel: '🔔 Lembrete pré-consulta (3 dias antes)'
-          });
+          };
+          notificacoes.push(notif);
+          novasNotifs.push({ notif, lojaId: ag.lojaId });
           novasIds.add(nid);
-          mudou = true;
           mostrarTicker(ag.nome, 'pre_consulta');
           toast('🔔','Lembrete de consulta!',`${ag.nome} · consulta em ${diffDiasConsulta === 0 ? 'hoje' : diffDiasConsulta + ' dia(s)'}`);
         }
       }
     });
 
-    if (mudou) {
+    if (novasNotifs.length > 0) {
       _sacudirSino();
-      await salvar();
+      // ids determinísticos ('n'+agId+sufixo) — seguro mesmo se duas sessões
+      // gerarem o mesmo lembrete ao mesmo tempo, pois o conteúdo é idêntico.
+      await Promise.all(novasNotifs.map(({notif, lojaId}) => salvarNotificacao(notif, lojaId)));
       renderNotificacoes(novasIds);
     }
   }
@@ -5135,20 +5185,24 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     const footer = document.getElementById('notifFooter');
     const naoLidas = notificacoes.filter(n => !n.lida);
 
-    if (naoLidas.length > 0) {
-      badge.textContent = naoLidas.length > 9 ? '9+' : naoLidas.length;
-      badge.classList.remove('hidden');
-    } else {
-      badge.classList.add('hidden');
+    if (badge) {
+      if (naoLidas.length > 0) {
+        badge.textContent = naoLidas.length > 9 ? '9+' : naoLidas.length;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
     }
+
+    if (!lista) return; // página sem o painel de notificações — nada a renderizar
 
     if (notificacoes.length === 0) {
       lista.innerHTML = '';
-      vazio.style.display = 'block';
+      if (vazio) vazio.style.display = 'block';
       if (footer) footer.style.display = 'none';
       return;
     }
-    vazio.style.display = 'none';
+    if (vazio) vazio.style.display = 'none';
     if (footer) {
       const agora = new Date();
       footer.textContent = `Verificado às ${agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})} · atualiza a cada 60s`;
@@ -5189,9 +5243,13 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     btn.addEventListener('animationend', () => btn.classList.remove('bell-shake'), { once: true });
   }
 
-  async function lerNotif(id) { const n = notificacoes.find(n => n.id === id); if (n) n.lida = true; await salvar(); renderNotificacoes(); }
-  async function dispensarNotif(id) { notificacoes = notificacoes.filter(n => n.id !== id); await salvar(); renderNotificacoes(); }
-  async function clearAll() { notificacoes.forEach(n => n.lida = true); await salvar(); renderNotificacoes(); }
+  async function lerNotif(id) { const n = notificacoes.find(n => n.id === id); if (!n) return; n.lida = true; await salvarNotificacao(n); renderNotificacoes(); }
+  async function dispensarNotif(id) { const n = notificacoes.find(n => n.id === id); notificacoes = notificacoes.filter(n => n.id !== id); if (n) await excluirNotificacaoDb(n); renderNotificacoes(); }
+  async function clearAll() {
+    notificacoes.forEach(n => n.lida = true);
+    await Promise.all(notificacoes.map(n => salvarNotificacao(n)));
+    renderNotificacoes();
+  }
 
   function toggleNotif() {
     const dd = document.getElementById('notifDropdown');
@@ -5553,13 +5611,14 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     ag.situacao = situacao;
 
     // ── VOUCHER AUTOMÁTICO DE AGRADECIMENTO ──────────────────────────
-    // Disparado ANTES do await salvar() para preservar o gesto do clique do usuário
-    // (navegadores bloqueiam window.open() se vier depois de uma chamada assíncrona).
+    // Disparado ANTES do await salvarAgendamento() para preservar o gesto do
+    // clique do usuário (navegadores bloqueiam window.open() se vier depois
+    // de uma chamada assíncrona).
     if (situacao === 'comprou') {
       enviarVoucherCompra(ag);
     }
 
-    await salvar();
+    await salvarAgendamento(ag);
     renderTabela(); atualizarStats();
     toast('✅','Status atualizado',`${ag.nome} → ${SITUACOES[situacao].label}`);
 
@@ -5669,7 +5728,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     if (!ag) return;
     ag.vendedor = vendedor;
     fecharTodosMenusVendedor();
-    await salvar();
+    await salvarAgendamento(ag);
     renderTabela();
     if (vendedor) toast('👤','Vendedor atualizado',`${ag.nome} → ${vendedor}`);
     else toast('👤','Vendedor removido', ag.nome);
@@ -5726,8 +5785,10 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   async function aplicarTrocaLoja(agId, lojaChave) {
     const ag = agendamentos.find(a => a.id === agId);
     if (!ag) return;
+    const lojaAntiga = ag.lojaId;
     ag.lojaId = lojaChave;
-    await salvar(); renderTabela();
+    await moverAgendamentoDeLoja(ag, lojaAntiga);
+    renderTabela();
     toast('🏪','Loja atualizada',`${ag.nome} → ${LOJAS[lojaChave].label}`);
     _pendingLojaId = null; _pendingLojaChave = null;
   }
@@ -5959,8 +6020,11 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     if (!novaData || !novoHorario) { toast('⚠️','Campos obrigatórios','Data e horário são obrigatórios.'); return; }
     ag.nome = novoNome; ag.tel = novoTel; ag.exame = novoExame || 'Não informado';
     ag.data = novaData; ag.horario = novoHorario; ag.vendedor = novoVendedor || '';
-    notificacoes.filter(n => n.agId === editandoId).forEach(n => { n.nome = novoNome; n.tel = novoTel; n.exame = ag.exame; n.dataAgenda = novaData; n.horario = novoHorario; });
-    await salvar(); renderCal(); renderTabela(); renderNotificacoes();
+    const notifsAfetadas = notificacoes.filter(n => n.agId === editandoId);
+    notifsAfetadas.forEach(n => { n.nome = novoNome; n.tel = novoTel; n.exame = ag.exame; n.dataAgenda = novaData; n.horario = novoHorario; });
+    await salvarAgendamento(ag);
+    await Promise.all(notifsAfetadas.map(n => salvarNotificacao(n, ag.lojaId)));
+    renderCal(); renderTabela(); renderNotificacoes();
     document.getElementById('modalOverlay').classList.add('hidden');
     editandoId = null;
     toast('✅','Paciente atualizado!',`${novoNome} atualizado.`);
@@ -6010,6 +6074,10 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     toast('✅','Backup exportado!','Arquivo JSON salvo.');
   }
 
+  // Restaura um backup fazendo MERGE registro a registro (grava/atualiza só
+  // os ids presentes no arquivo). Não apaga nem substitui a coleção
+  // inteira — isso evita que a restauração apague, por acidente, dados
+  // gravados por outra loja depois que o backup foi exportado.
   function importarBackup(event) {
     const file = event.target.files[0]; if (!file) return;
     const reader = new FileReader();
@@ -6018,10 +6086,22 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         const dados = JSON.parse(e.target.result);
         if (!Array.isArray(dados.agendamentos)) throw new Error();
         const total = dados.agendamentos.length;
-        if (!confirm(`Backup com ${total} agendamento(s) de ${new Date(dados.exportadoEm).toLocaleString('pt-BR')}.\n\nDeseja restaurar? Os dados atuais serão substituídos.`)) { event.target.value = ''; return; }
-        agendamentos = dados.agendamentos; notificacoes = dados.notificacoes || [];
-        await salvar(); renderTabela(); atualizarStats(); renderNotificacoes();
-        toast('✅','Backup restaurado!',`${total} agendamento(s).`);
+        if (!confirm(`Backup com ${total} agendamento(s) de ${new Date(dados.exportadoEm).toLocaleString('pt-BR')}.\n\nOs registros do arquivo serão gravados/atualizados (registros atuais que não estão no backup são preservados). Deseja continuar?`)) { event.target.value = ''; return; }
+        const updates = {};
+        dados.agendamentos.forEach(a => {
+          const lojaId = lojaFisicaId(a.lojaId);
+          if (!lojaId || !a.id) return;
+          updates[pathAg(lojaId, a.id)] = a;
+        });
+        (dados.notificacoes || []).forEach(n => {
+          const ag = dados.agendamentos.find(a => a.id === n.agId);
+          const lojaId = lojaFisicaId(ag && ag.lojaId);
+          if (!lojaId || !n.id) return;
+          updates[pathNotif(lojaId, n.id)] = n;
+        });
+        if (Object.keys(updates).length === 0) throw new Error();
+        await db.ref().update(updates);
+        toast('✅','Backup restaurado!',`${total} agendamento(s) mesclado(s).`);
       } catch { toast('❌','Erro ao importar','Arquivo inválido.'); }
       event.target.value = '';
     };
@@ -7005,7 +7085,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
     }
 
     // ── persistir no Firebase ─────────────────────────────
-    await salvar();
+    await salvarMedDados(agId, tipo);
     vendorRenderNav && vendorRenderNav();
 
     // ── feedback visual ───────────────────────────────────
