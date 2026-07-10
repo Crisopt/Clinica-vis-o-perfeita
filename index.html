@@ -4543,6 +4543,11 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
   let notificacoes   = [];
   let notifOpen      = false;
   let escutandoFirebase = false;
+  // Controla quais lojas já receberam ao menos um snapshot do listener em
+  // tempo real. Enquanto uma loja não estiver aqui, salvar() NUNCA escreve
+  // no nó dela — isso evita a corrida que apagava lojas inteiras (ver
+  // comentário detalhado em salvar()).
+  let lojasCarregadas = new Set();
 
   // ── PERFIL DO USUÁRIO ────────────────────────────────────
   // role: 'master' | 'loja'
@@ -4635,6 +4640,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       agendamentos  = [];
       notificacoes  = [];
       escutandoFirebase = false;
+      lojasCarregadas = new Set();
       if (_lembreteInterval) { clearInterval(_lembreteInterval); _lembreteInterval = null; }
       // Desligar listeners de todas as lojas
       LOJAS_IDS.forEach(lid => db.ref(dbPath(lid)).off());
@@ -4716,28 +4722,30 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         });
       });
 
-      // Grava todas as lojas envolvidas em UMA ÚNICA operação atômica
-      // (multi-path update). Antes, cada loja era gravada com um set()
-      // sequencial separado — como agora qualquer acesso escuta as 4 lojas
-      // em tempo real, o listener da primeira loja gravada podia disparar
-      // e reconstruir a tabela com dados ainda desatualizados das lojas
-      // seguintes (que ainda não tinham sido gravadas), revertendo na hora
-      // qualquer alteração visual (situação, vendedor, loja etc.). Com
-      // update() único, todas as gavetas mudam ao mesmo tempo, então os
-      // listeners só veem o estado já consistente.
-      // IMPORTANTE: lojaId de um agendamento pode ser uma loja física
-      // ('loja1'..'loja4') OU uma tag de tráfego ('trafego-loja1'..
-      // 'trafego-loja4'). Só existem 4 "gavetas" físicas no banco
-      // (LOJAS_IDS), então usamos lojaFisicaId() para saber em qual gaveta
-      // cada agendamento deve ser gravado, SEM perder o lojaId original
-      // (que continua sendo 'trafego-lojaX' dentro do objeto salvo). Antes,
-      // a comparação era feita direto contra lojaId sem essa conversão, e
-      // como 'trafego-loja1' nunca é === 'loja1', o agendamento não batia
-      // com NENHUMA das 4 gavetas e acabava não sendo salvo em lugar
-      // nenhum — sumindo da listagem no próximo carregamento.
+      // ═══════════════════════════════════════════════════════
+      // POR QUE OS AGENDAMENTOS SUMIAM QUANDO UMA LOJA COMEÇAVA A USAR:
+      // iniciarEscutaFirebase() liga um listener on('value') SEPARADO para
+      // cada uma das 4 lojas. O Firebase entrega esses 4 snapshots de forma
+      // assíncrona e INDEPENDENTE — não chegam todos no mesmo instante.
+      // Assim que o snapshot da loja1 chega, reconstruirEstado() já
+      // reconstrói a variável global `agendamentos` com o que tiver no
+      // cache até aquele momento — que pode ser SÓ a loja1, se os
+      // snapshots de loja2/3/4 ainda não tiverem chegado.
+      // Se, nessa janela de alguns milissegundos, o usuário salvasse algo
+      // (ex: criava um agendamento), o salvar() varria as 4 gavetas e
+      // regravava TODAS com base nesse `agendamentos` incompleto — como
+      // loja2/3/4 não existiam ainda na memória, elas eram sobrescritas
+      // com listas vazias, apagando permanentemente todos os agendamentos
+      // dessas lojas no banco.
+      // A correção: só gravamos a gaveta de uma loja se ela já tiver
+      // confirmado (lojasCarregadas) que seu snapshot inicial já chegou.
+      // Lojas ainda não carregadas simplesmente não entram no `updates` e
+      // ficam intocadas no banco até estarem prontas.
+      // ═══════════════════════════════════════════════════════
       const updates = {};
       const ts = Date.now();
       for (const lojaId of LOJAS_IDS) {
+        if (!lojasCarregadas.has(lojaId)) continue;
         const agDaLoja = agendamentos.filter(a => lojaFisicaId(a.lojaId || lojaId) === lojaId);
         const notifDaLoja = notificacoes.filter(n => {
           const ag = agendamentos.find(a => a.id === n.agId);
@@ -4746,6 +4754,10 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
         const medDaLoja = {};
         agDaLoja.forEach(a => { if (medDadosParaSalvar[a.id]) medDaLoja[a.id] = medDadosParaSalvar[a.id]; });
         updates[dbPath(lojaId)] = { agendamentos: agDaLoja, notificacoes: notifDaLoja, medDados: medDaLoja, ts };
+      }
+      if (Object.keys(updates).length === 0) {
+        console.warn('salvar() abortado: nenhuma loja pronta ainda.');
+        return;
       }
       await db.ref().update(updates);
     }
@@ -4770,6 +4782,11 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
           Object.assign(medDados, obj.medDados||{});
         }
       });
+      // Como carregarDados() já buscou as 4 lojas por completo (via .get()),
+      // marcamos todas como carregadas aqui — assim, mesmo que os listeners
+      // em tempo real (iniciarEscutaFirebase) ainda não tenham disparado,
+      // salvar() já pode gravar com segurança logo após o login.
+      LOJAS_IDS.forEach(l => lojasCarregadas.add(l));
     } catch(e) { console.warn('Firebase read error', e); }
   }
 
@@ -4803,6 +4820,7 @@ tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
       db.ref(dbPath(lid)).on('value', snap => {
         if (!usuarioLogado) return;
         snapshotCache[lid] = snap.exists() ? snap.val() : {};
+        lojasCarregadas.add(lid);
         reconstruirEstado();
         if (primeiroSnapshot) {
           primeiroSnapshot = false;
